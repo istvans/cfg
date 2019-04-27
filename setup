@@ -47,6 +47,14 @@ git config --global alias.lg "log --color --graph --pretty=format:'%Cred%h%Crese
 git config --global credential.helper 'cache --timeout=3600'
 echo done
 
+echo "setup vim..."
+TYPE_SCRIPT_SYNTAX="typescript-vim"
+TYPE_SCRIPT_SYNTAX_DIR="$HOME/.vim/pack/typescript/start"
+if [ ! -d $TYPE_SCRIPT_SYNTAX_DIR ]; then
+    mkdir -p $TYPE_SCRIPT_SYNTAX_DIR
+    git clone https://github.com/leafgarland/$TYPE_SCRIPT_SYNTAX.git $TYPE_SCRIPT_SYNTAX_DIR/$TYPE_SCRIPT_SYNTAX
+fi
+
 echo "setup bash..."
 . $CFG_DIR/.bash_envars
 BASH_GIT_PROMPT_DIR=$HOME/$BASH_GIT_PROMPT
