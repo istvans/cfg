@@ -1,0 +1,104 @@
+#!/bin/bash
+#==============================================================================
+# add to crontab like this:
+# @reboot $HOME/bin/monvpn >/var/tmp/monvpn.log 2>&1
+#==============================================================================
+# Imports
+#==============================================================================
+. $HOME/.bash_envars
+[ $? -ne 0 ] && exit 41
+. $HOME/.bash_functions
+[ $? -ne 0 ] && exit 42
+#==============================================================================
+# Constants
+#==============================================================================
+VPN_SERVICE="expressvpn"
+VPN="/usr/bin/$VPN_SERVICE"
+FGREP="/bin/fgrep"
+PGREP="/usr/bin/pgrep"
+RECONNECT_WAIT_S=30
+MONITOR_WAIT_S=600
+TRY_NEXT_FAIL_COUNT=10
+#==============================================================================
+# Functions
+#==============================================================================
+function is_connected
+{
+    $VPN status | $FGREP "Connected to" >/dev/null 2>&1 && return $(True)
+    return $(False)
+}
+#==============================================================================
+function service_is_running
+{
+    $VPN status 2>&1 | $FGREP "It seems the $VPN_SERVICE daemon is not running" \
+        >/dev/null 2>&1 && return $(False)
+    return $(True)
+}
+#==============================================================================
+function connect_server
+{
+    $was_connected && opt_prefix="re"
+    log "${opt_prefix}connecting to ${servers[$conn_id]} (failures: $fail_counter)"
+    $VPN connect ${servers[$conn_id]}
+    sleep $RECONNECT_WAIT_S
+}
+#==============================================================================
+# allow only one instance of the monitor
+function kill_other_instances
+{
+    if [[ -n "$VPNMON_INSTANCE_NAME" ]]; then
+        log "own pid: $$"
+        for pid in $($PGREP -f "$VPNMON_INSTANCE_NAME"); do
+            if [ $pid -ne $$ ]; then
+                log "killing pid: $pid"
+                /bin/kill $pid
+            fi
+        done
+    fi
+}
+#==============================================================================
+# MAIN
+#==============================================================================
+
+kill_other_instances
+
+# ensure connection to one of the listed servers
+# if connection fails, try reconnecting and wait RECONNECT_WAIT_S
+# if it continuously fail for TRY_NEXT_FAIL_COUNT seconds
+# try the second server and so on
+
+servers=("Hungary" "smart")
+log "servers: ${servers[*]}"
+
+conn_id=0
+fail_counter=0
+was_connected=false
+connected=false
+
+log "monitoring started..."
+while true; do
+    if is_connected; then
+        if ! $connected; then
+            log "connected to ${servers[$conn_id]}"
+            fail_counter=0
+            connected=true
+            was_connected=true
+        else
+            sleep $MONITOR_WAIT_S
+        fi
+    else
+        connected=false
+        if service_is_running; then
+            if [ $fail_counter -eq $TRY_NEXT_FAIL_COUNT ]; then
+                conn_id=$((($conn_id + 1) % ${#servers[*]}))
+                fail_counter=0
+            else
+                ((fail_counter += 1))
+            fi
+            connect_server
+        else
+            log "the vpn service is not running!!!"
+            sleep $RECONNECT_WAIT_S
+        fi
+    fi
+done

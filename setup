@@ -25,10 +25,19 @@ if [ ! $expressvpn_is_installed ]; then
     fi
 fi
 echo "$express_vpn_installer"
+BIN_DIR=$HOME/bin
+if [ ! -d $BIN_DIR ]; then
+    mkdir $BIN_DIR
+    if [ ! $? ]; then
+        echo "Failed to create $BIN_DIR" >&2
+        exit 4
+    fi
+fi
+echo "$BIN_DIR"
 
 echo "let's start with making sure we have all the essential apps..."
 sudo apt-get update
-sudo apt-get install htop man transmission-daemon vim
+sudo apt-get install cron htop man transmission-daemon vim
 
 printf "setup git... "
 git config --global user.email "stevesiroki@gmail.com"
@@ -76,6 +85,11 @@ if [ ! $expressvpn_is_installed ]; then
     expressvpn connect $VPN_SERVER
 fi
 expressvpn preferences
+
+printf "install VPN monitor... "
+cp $CFG_DIR/monvpn $BIN_DIR/monvpn
+crontab $CFG_DIR/monvpn.cron
+echo done
 
 echo "setup transmission..."
 sudo systemctl stop transmission-daemon
