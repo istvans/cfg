@@ -1,1 +1,0 @@
-@reboot $HOME/bin/monvpn >/var/tmp/monvpn.log 2>&1

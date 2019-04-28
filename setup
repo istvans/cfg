@@ -96,7 +96,10 @@ expressvpn preferences
 
 printf "install VPN monitor... "
 cp $CFG_DIR/monvpn $BIN_DIR/monvpn
-crontab $CFG_DIR/monvpn.cron
+echo done
+
+printf "install crontab... "
+crontab $CFG_DIR/cron
 echo done
 
 echo "setup transmission..."
