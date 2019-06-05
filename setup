@@ -81,7 +81,9 @@ git config --global user.email "stevesiroki@gmail.com"
 git config --global user.name "István Siroki"
 git config --global core.editor "vim"
 git config --global alias.lg "log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit"
-git config --global credential.helper 'cache --timeout=3600'
+if [ "$MALNA" = true ]; then
+    git config --global credential.helper 'cache --timeout=3600'
+fi
 echo done
 
 printf "setup vim... "
