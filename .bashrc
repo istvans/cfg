@@ -83,12 +83,13 @@ if [ "$color_prompt" = yes ]; then
     blue="01;34m"
     green="01;32m"
     red="01;31m"
+    purple="01;35m"
+    yellow="01;33m"
     user_color=$green
     path_color=$blue
     [[ "$USER" = "root" ]] && user_color=$red
-    PS1='${debian_chroot:+($debian_chroot)}\[\033[$user_color\]\u@\h\[\033[00m\]:\[\033[$path_color\]\w\[\033[00m\]\n\D{%H:%M} \$ '
-
     if [ -f "$HOME/$BASH_GIT_PROMPT/gitprompt.sh" ]; then
+        PS1='${debian_chroot:+($debian_chroot)}\[\033[$user_color\]\u@\h\[\033[00m\]:\[\033[$path_color\]\w\[\033[00m\]$GIT_PS\n\D{%H:%M} \$ '
         # Set config variables first
         GIT_PROMPT_ONLY_IN_REPO=1
 
@@ -111,10 +112,12 @@ if [ "$color_prompt" = yes ]; then
         # GIT_PROMPT_THEME_FILE=~/.git-prompt-colors.sh
         # GIT_PROMPT_THEME=Solarized # use theme optimized for solarized color scheme  
         source $HOME/$BASH_GIT_PROMPT/gitprompt.sh
+    else
+        branch_color=$purple
+        PS1='${debian_chroot:+($debian_chroot)}\[\033[$user_color\]\u@\h\[\033[00m\]:\[\033[$path_color\]\w\[\033[00m\]`git branch 2>/dev/null | sed -r "s#\* *(.*)# [\[\033[$branch_color\]\1\[\033[00m\]]#"`\n\D{%H:%M} \$ '
     fi
 else
-    PS1='${debian_chroot:+($debian_chroot)}\u@\h \w
-\$ '
+    PS1='${debian_chroot:+($debian_chroot)}\u@\h \w\n\D{%H:%M} \$ '
 fi
 unset color_prompt force_color_prompt
 

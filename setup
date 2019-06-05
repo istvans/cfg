@@ -1,43 +1,80 @@
 #!/bin/bash
 
+
+#=================================== FUNC =====================================
+function is_installed
+{
+    app=$1
+    which $app
+    return $?
+}
+
+function FATAL
+{
+    exit_code=$1
+    shift
+    echo "$@" >&2
+    exit $exit_code
+}
+
+function force_home_links
+{
+     for file in $@; do
+         ln -sf $CFG_DIR/$file $HOME/.
+         if [ "$MALNA" = true ]; then
+             sudo ln -sf $HOME/$file ~root/.
+         fi
+     done
+}
+
+
+#=================================== MAIN =====================================
+
 which git >/dev/null 2>&1
 if [ $? -ne 0 ]; then
-    echo "missing git? this script should have been git cloned!" >&2
-    exit 1
+    FATAL 1 "missing git? this script should have been git cloned!"
 fi
+
 CFG_DIR=$HOME/cfg
 if [ ! -d $CFG_DIR ]; then
     if [[ "$(basename $PWD)" = "$CFG_DIR" ]]; then
         CFG_DIR=$PWD
     else
-        echo "Cannot find the $CFG_DIR directory!" >&2
-        exit 2
+        FATAL 2 "Cannot find the $CFG_DIR directory!"
     fi
 fi
 echo "$CFG_DIR"
-which expressvpn
-expressvpn_is_installed=$?
-if [ ! $expressvpn_is_installed ]; then
-    express_vpn_installer="$(find $CFG_DIR -maxdepth 1 -name 'expressvpn*' -print -quit)"
-    if [[ -z "$express_vpn_installer" ]]; then
-        echo "put an expressvpn installer into $CFG_DIR/ and try again" >&2
-        exit 3
+
+. $CFG_DIR/argparse
+
+if [ "$MALNA" = true ]; then
+    if [ ! $(is_installed expressvpn) ]; then
+        express_vpn_installer="$(find $CFG_DIR -maxdepth 1 -name 'expressvpn*' -print -quit)"
+        if [[ -z "$express_vpn_installer" ]]; then
+            FATAL 3 "put an expressvpn installer into $CFG_DIR/ and try again"
+        fi
     fi
+    echo "$express_vpn_installer"
 fi
-echo "$express_vpn_installer"
+
 BIN_DIR=$HOME/bin
 if [ ! -d $BIN_DIR ]; then
     mkdir $BIN_DIR
     if [ ! $? ]; then
-        echo "Failed to create $BIN_DIR" >&2
-        exit 4
+        FATAL 4 "Failed to create $BIN_DIR"
     fi
 fi
 echo "$BIN_DIR"
 
 echo "let's start with making sure we have all the essential apps..."
-sudo apt-get update
-sudo apt-get install cron htop man transmission-daemon vim
+if [ "$MALNA" = true ]; then
+    sudo apt-get update
+    sudo apt-get install cron htop man transmission-daemon vim
+else
+    if [ ! $(is_installed vim) ]; then
+        FATAL 5 "vim is missing!"
+    fi    
+fi
 
 printf "setup git... "
 git config --global user.email "stevesiroki@gmail.com"
@@ -47,68 +84,63 @@ git config --global alias.lg "log --color --graph --pretty=format:'%Cred%h%Crese
 git config --global credential.helper 'cache --timeout=3600'
 echo done
 
-echo "setup vim..."
+printf "setup vim... "
 TYPE_SCRIPT_SYNTAX="typescript-vim"
 TYPE_SCRIPT_SYNTAX_DIR="$HOME/.vim/pack/typescript/start"
 if [ ! -d $TYPE_SCRIPT_SYNTAX_DIR ]; then
     mkdir -p $TYPE_SCRIPT_SYNTAX_DIR
     git clone https://github.com/leafgarland/$TYPE_SCRIPT_SYNTAX.git $TYPE_SCRIPT_SYNTAX_DIR/$TYPE_SCRIPT_SYNTAX
 fi
+echo done
 
-echo "setup bash..."
+printf "setup bash... "
 . $CFG_DIR/.bash_envars
-BASH_GIT_PROMPT_DIR=$HOME/$BASH_GIT_PROMPT
-if [ ! -d $BASH_GIT_PROMPT_DIR ]; then
-    git clone https://github.com/magicmonty/bash-git-prompt.git $BASH_GIT_PROMPT_DIR --depth=1
-fi
-
-function force_home_links
-{
-     for file in $@
-     do
-         ln -sf $CFG_DIR/$file $HOME/.
-         sudo ln -sf $HOME/$file ~root/.
-     done
-}
 force_home_links .bash_profile .bashrc .bash_aliases .bash_envars .bash_functions .vimrc
-
-DEFAULT_LOCALE=/etc/default/locale
-if [[ ! -f $DEFAULT_LOCALE || "$(tail -n1 /etc/default/locale | cut -f2 -d =)" != "$LANG" ]]; then
-    sudo dpkg-reconfigure locales
-    sudo update-locale
-fi
-
-DIGI_DIR=$HOME/digionline
-if [ ! -d $DIGI_DIR ]; then
-    echo "setup digionline under $DIGI_DIR..."
-    git clone https://github.com/istvans/digionline.git $DIGI_DIR
-    $DIGI_DIR/osmc_installer.sh
-fi
-
-if [ ! $expressvpn_is_installed ]; then
-    echo "setup expressvpn..."
-    sudo dpkg -i $express_vpn_installer
-    expressvpn activate
-    expressvpn autoconnect on
-    expressvpn connect $VPN_SERVER
-fi
-expressvpn preferences
-
-printf "install VPN monitor... "
-cp $CFG_DIR/monvpn $BIN_DIR/monvpn
 echo done
 
-printf "install crontab... "
-crontab $CFG_DIR/cron
-echo done
+if [ "$MALNA" = true ]; then
+    BASH_GIT_PROMPT_DIR=$HOME/$BASH_GIT_PROMPT
+    if [ ! -d $BASH_GIT_PROMPT_DIR ]; then
+        git clone https://github.com/magicmonty/bash-git-prompt.git $BASH_GIT_PROMPT_DIR --depth=1
+    fi
 
-echo "setup transmission..."
-sudo systemctl stop transmission-daemon
-echo "please configure the daemon"
-sleep 5
-sudo vim /etc/transmission-daemon/settings.json
-sudo systemctl start transmission-daemon
+    DEFAULT_LOCALE=/etc/default/locale
+    if [[ ! -f $DEFAULT_LOCALE || "$(tail -n1 /etc/default/locale | cut -f2 -d =)" != "$LANG" ]]; then
+        sudo dpkg-reconfigure locales
+        sudo update-locale
+    fi
 
-echo "setup samba..."
-sudo apt-get install smb-app-osmc # must be the last step, it exits at the end...
+    DIGI_DIR=$HOME/digionline
+    if [ ! -d $DIGI_DIR ]; then
+        echo "setup digionline under $DIGI_DIR..."
+        git clone https://github.com/istvans/digionline.git $DIGI_DIR
+        $DIGI_DIR/osmc_installer.sh
+    fi
 
+    if [ ! $expressvpn_is_installed ]; then
+        echo "setup expressvpn..."
+        sudo dpkg -i $express_vpn_installer
+        expressvpn activate
+        expressvpn autoconnect on
+        expressvpn connect $VPN_SERVER
+    fi
+    expressvpn preferences
+
+    printf "install VPN monitor... "
+    cp $CFG_DIR/monvpn $BIN_DIR/monvpn
+    echo done
+
+    printf "install crontab... "
+    crontab $CFG_DIR/cron
+    echo done
+
+    echo "setup transmission..."
+    sudo systemctl stop transmission-daemon
+    echo "please configure the daemon"
+    sleep 5
+    sudo vim /etc/transmission-daemon/settings.json
+    sudo systemctl start transmission-daemon
+
+    echo "setup samba..."
+    sudo apt-get install smb-app-osmc # must be the last step, it exits at the end...
+fi
