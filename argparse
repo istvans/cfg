@@ -1,11 +1,16 @@
 POSITIONAL=()
 MALNA=false
+HELP=false
 while [[ $# -gt 0 ]]; do
     key="$1"
     case $key in
         -m|--malna)
             MALNA=true
             shift # past argument
+        ;;
+        -h|--help)
+            HELP=true
+            shift
         ;;
         *)  # unknown option
             POSITIONAL+=("$1") # save it in an array for later
@@ -15,4 +20,17 @@ while [[ $# -gt 0 ]]; do
 done
 set -- "${POSITIONAL[@]}" # restore positional parameters
 
+if [ "$HELP" = true ]; then
+    me=$(basename $0)
+    cat << EOF
+Usage:
+$ $me (Options)
+
+Options:
+    -m|--malna      enable MALNA options
+    -h|--help       show this help message and exit
+
+EOF
+    exit 0
+fi
 echo "MALNA setup? $MALNA"

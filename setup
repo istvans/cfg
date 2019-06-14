@@ -43,9 +43,10 @@ if [ ! -d $CFG_DIR ]; then
         FATAL 2 "Cannot find the $CFG_DIR directory!"
     fi
 fi
-echo "$CFG_DIR"
 
 . $CFG_DIR/argparse
+
+echo "CFG_DIR:'$CFG_DIR'"
 
 if [ "$MALNA" = true ]; then
     if [ ! $(is_installed expressvpn) ]; then
@@ -53,8 +54,8 @@ if [ "$MALNA" = true ]; then
         if [[ -z "$express_vpn_installer" ]]; then
             FATAL 3 "put an expressvpn installer into $CFG_DIR/ and try again"
         fi
+        echo "ExpressVPN installer:'$express_vpn_installer'"
     fi
-    echo "$express_vpn_installer"
 fi
 
 BIN_DIR=$HOME/bin
@@ -64,7 +65,7 @@ if [ ! -d $BIN_DIR ]; then
         FATAL 4 "Failed to create $BIN_DIR"
     fi
 fi
-echo "$BIN_DIR"
+echo "BIN_DIR:'$BIN_DIR'"
 
 echo "let's start with making sure we have all the essential apps..."
 if [ "$MALNA" = true ]; then
@@ -119,7 +120,7 @@ if [ "$MALNA" = true ]; then
         $DIGI_DIR/osmc_installer.sh
     fi
 
-    if [ ! $expressvpn_is_installed ]; then
+    if [ ! $(is_installed expressvpn) ]; then
         echo "setup expressvpn..."
         sudo dpkg -i $express_vpn_installer
         expressvpn activate
@@ -141,6 +142,7 @@ if [ "$MALNA" = true ]; then
     echo "please configure the daemon"
     sleep 5
     sudo vim /etc/transmission-daemon/settings.json
+    sudo usermod -a -G debian-transmission $USER
     sudo systemctl start transmission-daemon
 
     echo "setup samba..."
