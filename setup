@@ -133,6 +133,11 @@ if [ "$MALNA" = true ]; then
     ln -sf $CFG_DIR/monvpn $BIN_DIR/monvpn
     echo done
 
+    OLD_CRON="/var/tmp/crontab.old"
+    printf "saving old crontab to '$OLD_CRON'... "
+    crontab -l > $OLD_CRON
+    echo done
+
     printf "install crontab... "
     crontab $CFG_DIR/cron
     echo done
