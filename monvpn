@@ -67,7 +67,7 @@ kill_other_instances
 # if it continuously fail for TRY_NEXT_FAIL_COUNT seconds
 # try the second server and so on
 
-servers=("Hungary" "smart")
+servers=("smart" "Hungary")
 log "servers: ${servers[*]}"
 
 conn_id=0

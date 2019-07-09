@@ -130,7 +130,7 @@ if [ "$MALNA" = true ]; then
     expressvpn preferences
 
     printf "install VPN monitor... "
-    cp $CFG_DIR/monvpn $BIN_DIR/monvpn
+    ln -sf $CFG_DIR/monvpn $BIN_DIR/monvpn
     echo done
 
     printf "install crontab... "
