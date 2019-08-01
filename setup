@@ -95,6 +95,13 @@ if [ ! -d $TYPE_SCRIPT_SYNTAX_DIR ]; then
     git clone https://github.com/leafgarland/$TYPE_SCRIPT_SYNTAX.git $TYPE_SCRIPT_SYNTAX_DIR/$TYPE_SCRIPT_SYNTAX
 fi
 echo done
+    
+echo "setup locales..."
+DEFAULT_LOCALE=/etc/default/locale
+if [[ ! -f $DEFAULT_LOCALE || "$(tail -n1 /etc/default/locale | cut -f2 -d =)" != "$LANG" ]]; then
+    sudo dpkg-reconfigure locales
+    sudo update-locale
+fi
 
 printf "setup bash... "
 . $CFG_DIR/.bash_envars
@@ -107,11 +114,6 @@ if [ "$MALNA" = true ]; then
         git clone https://github.com/magicmonty/bash-git-prompt.git $BASH_GIT_PROMPT_DIR --depth=1
     fi
 
-    DEFAULT_LOCALE=/etc/default/locale
-    if [[ ! -f $DEFAULT_LOCALE || "$(tail -n1 /etc/default/locale | cut -f2 -d =)" != "$LANG" ]]; then
-        sudo dpkg-reconfigure locales
-        sudo update-locale
-    fi
 
     DIGI_DIR=$HOME/digionline
     if [ ! -d $DIGI_DIR ]; then
