@@ -7,3 +7,4 @@ alias lessc="less -r"
 alias lrt="ls -lrt"
 alias cpg="rsync --partial --progress --append --rsh=ssh -r -h"
 alias mvg="rsync --partial --progress --append --rsh=ssh -r -h --remove-sent-files"
+alias pipenv3=$HOME/.local/bin/pipenv
