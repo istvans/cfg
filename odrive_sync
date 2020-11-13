@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
-. $HOME/.bash_envars
-find $ODRIVE_LOG -mtime +14 -type f -delete
-echo "########### $(date)" >> $ODRIVE_LOG 2>&1
-python -u $ODRIVE sync $ODRIVE_AMAZON_PLACEHOLDER --recursive >>$ODRIVE_LOG 2>&1
+. $HOME/bin/odrive_common
+
+log_file=$(unique_log_filename)
+
+# purge old log files
+find $ODRIVE_LOG* -mtime +7 -type f -delete
+
+# sync
+python -u $ODRIVE sync $ODRIVE_AMAZON_PLACEHOLDER --recursive >>$log_file 2>&1
 

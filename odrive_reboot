@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
-. $HOME/.bash_envars
-echo "########### $(date)" > $ODRIVE_LOG 2>&1
+. $HOME/bin/odrive_common
+
+log_file=$(unique_log_filename)
+
 # halt any existing odrive process
 pkill odrive
+
 # start up the odrive agent
 $ODRIVE_AGENT >/var/tmp/odriveagent.log 2>&1 &
-# allow the agent to properly start up
-sleep 20
+
+# allow enough time for the agent to properly start up
+sleep 30
+
 # login the odrive agent
-python -u $ODRIVE authenticate $ODRIVE_AUTH_KEY >$ODRIVE_LOG 2>&1
+python -u $ODRIVE authenticate $ODRIVE_AUTH_KEY >$log_file 2>&1
+
 # mount the odrive Amazon Cloud Drive path
-python -u $ODRIVE mount $ODRIVE_AMAZON_PLACEHOLDER "Amazon Cloud Drive" >>$ODRIVE_LOG 2>&1
+python -u $ODRIVE mount $ODRIVE_AMAZON_PLACEHOLDER "Amazon Cloud Drive" >>$log_file 2>&1
 

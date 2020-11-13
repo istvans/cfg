@@ -1,0 +1,7 @@
+. $HOME/.bash_envars
+
+function unique_log_filename
+{
+    echo "$ODRIVE_LOG.$$.$(date +%Y%m%d_%H%M%S).log"
+}
+

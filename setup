@@ -161,6 +161,7 @@ if [ "$MALNA" = true ]; then
             FATAL 8 "The odrive auth key is still empty... ¯\_(ツ)_/¯"
         fi
     fi
+    ln -sf $CFG_DIR/odrive_common $BIN_DIR/odrive_common
     ln -sf $CFG_DIR/odrive_reboot $BIN_DIR/odrive_reboot
     ln -sf $CFG_DIR/odrive_sync $BIN_DIR/odrive_sync
     echo done
