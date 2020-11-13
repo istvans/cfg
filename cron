@@ -1,4 +1,18 @@
+# !!! INSTALLED WITH cfg/setup !!!
+# ┌───────────── minute (0 - 59)
+# # │ ┌───────────── hour (0 - 23)
+# # │ │ ┌───────────── day of the month (1 - 31)
+# # │ │ │ ┌───────────── month (1 - 12)
+# # │ │ │ │ ┌───────────── day of the week (0 - 6) (Sunday to Saturday;
+# # │ │ │ │ │                                   7 is also Sunday on some systems)
+# # │ │ │ │ │
+# # │ │ │ │ │
+# # * * * * * <command to execute>
 # to ensure the VPN is connected after start-up
 @reboot         $HOME/bin/monvpn >/var/tmp/monvpn.log 2>&1
+# start up the odrive agent
+@reboot         $HOME/bin/odrive_reboot
+# odrive scan for new cloud content
+0 1 * * *       $HOME/bin/odrive_sync
 # to ensure digionline logs cannot grow forever
 0 5 * * mon     /usr/sbin/service digionline restart

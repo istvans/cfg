@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+. $HOME/.bash_envars
+find $ODRIVE_LOG -mtime +14 -type f -delete
+echo "########### $(date)" >> $ODRIVE_LOG 2>&1
+python -u $ODRIVE sync $ODRIVE_AMAZON_PLACEHOLDER --recursive >>$ODRIVE_LOG 2>&1
+

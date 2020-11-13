@@ -30,8 +30,7 @@ function force_home_links
 
 #=================================== MAIN =====================================
 
-which git >/dev/null 2>&1
-if [ $? -ne 0 ]; then
+if [ ! $(is_installed git) ]; then
     FATAL 1 "missing git? this script should have been git cloned!"
 fi
 
@@ -133,6 +132,37 @@ if [ "$MALNA" = true ]; then
 
     printf "install VPN monitor... "
     ln -sf $CFG_DIR/monvpn $BIN_DIR/monvpn
+    echo done
+
+    echo "setup odrive..."
+    if [ ! -d $ODRIVE_PATH ]; then
+        mkdir -p $ODRIVE_PATH
+    fi
+    if [ ! -f $ODRIVE_AGENT ]; then
+        wget https://dl.odrive.com/odriveagent-rpi -O - | tar -xz --directory=$ODRIVE_PATH
+        if [ ! -f $ODRIVE_AGENT ]; then
+            FATAL 6 "Failed to install '$ODRIVE_AGENT'"
+        fi
+    fi
+    if [ ! -f $ODRIVE ]; then
+        wget https://dl.odrive.com/odrive-py -O $ODRIVE
+        if [ ! -f $ODRIVE ]; then
+            FATAL 7 "Failed to install '$ODRIVE'"
+        fi
+    fi
+    if [ ! -f $ODRIVE_AUTH_KEY_FILE ]; then
+        touch $ODRIVE_AUTH_KEY_FILE
+        chmod 600 $ODRIVE_AUTH_KEY_FILE
+        read -p "please type in your secret odrive auth key: " auth_key
+        echo "$auth_key" > $ODRIVE_AUTH_KEY_FILE
+        chmod 400 $ODRIVE_AUTH_KEY_FILE
+        . $CFG_DIR/.bash_envars  # to populate ODRIVE_AUTH_KEY from the new file
+        if [ -z "$ODRIVE_AUTH_KEY" ]; then
+            FATAL 8 "The odrive auth key is still empty... ¯\_(ツ)_/¯"
+        fi
+    fi
+    ln -sf $CFG_DIR/odrive_reboot $BIN_DIR/odrive_reboot
+    ln -sf $CFG_DIR/odrive_sync $BIN_DIR/odrive_sync
     echo done
 
     OLD_CRON="/var/tmp/crontab.old"

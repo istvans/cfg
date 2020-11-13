@@ -27,7 +27,7 @@ Usage:
 $ $me (Options)
 
 Options:
-    -m|--malna      enable MALNA options
+    -m|--malna      trigger MALNA setup steps
     -h|--help       show this help message and exit
 
 EOF
