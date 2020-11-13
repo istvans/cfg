@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 . $HOME/.bash_envars
+echo "########### $(date)" > $ODRIVE_LOG 2>&1
 # halt any existing odrive process
 pkill odrive
 # start up the odrive agent
