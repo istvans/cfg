@@ -1,5 +1,6 @@
 POSITIONAL=()
 MALNA=false
+BATCH_MODE=false
 HELP=false
 while [[ $# -gt 0 ]]; do
     key="$1"
@@ -7,6 +8,10 @@ while [[ $# -gt 0 ]]; do
         -m|--malna)
             MALNA=true
             shift # past argument
+        ;;
+        -b|--batch)
+            BATCH_MODE=true
+            shift
         ;;
         -h|--help)
             HELP=true
@@ -27,10 +32,12 @@ Usage:
 $ $me (Options)
 
 Options:
-    -m|--malna      trigger MALNA setup steps
-    -h|--help       show this help message and exit
+    -m|--malna                      trigger MALNA setup steps
+    -b|--batch                      activates batch mode aka non-interactive mode
+    -h|--help                       show this help message and exit
 
 EOF
     exit 0
 fi
 echo "MALNA setup? $MALNA"
+echo "BATCH mode? $BATCH_MODE"

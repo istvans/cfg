@@ -33,3 +33,16 @@ function crashburn
     fi
 }
 #==============================================================================
+function kill_other_instances
+{
+    if [[ -n "$VPNMON_INSTANCE_NAME" ]]; then
+        log "own pid: $$"
+        for pid in $(/usr/bin/pgrep -f "$VPNMON_INSTANCE_NAME"); do
+            if [ $pid -ne $$ ]; then
+                log "killing pid: $pid"
+                /bin/kill $pid
+            fi
+        done
+    fi
+}
+#==============================================================================

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 . $HOME/bin/odrive_common
 
-log_file=$(unique_log_filename)
+log_file="/var/tmp/odriveagent.start.log"
 
 # halt any existing odrive process
 pkill odrive
@@ -10,7 +10,7 @@ pkill odrive
 $ODRIVE_AGENT >/var/tmp/odriveagent.log 2>&1 &
 
 # allow enough time for the agent to properly start up
-sleep 30
+sleep $ODRIVE_AGENT_WAIT_S
 
 # login the odrive agent
 python -u $ODRIVE authenticate $ODRIVE_AUTH_KEY >$log_file 2>&1

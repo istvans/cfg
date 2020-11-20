@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+#==============================================================================
+# add to crontab like this:
+# @reboot /bin/sleep 300; $HOME/bin/monodrive >/var/tmp/monodrive.log 2>&1
+#==============================================================================
+# Imports
+#==============================================================================
+. $HOME/.bash_envars
+[ $? -ne 0 ] && exit 41
+. $HOME/.bash_functions
+[ $? -ne 0 ] && exit 42
+#==============================================================================
+# Constants
+#==============================================================================
+FGREP="/bin/fgrep"
+MONITOR_WAIT_S=60
+WAIT_FOR_AGENT_S=$ODRIVE_AGENT_WAIT_S
+AGENT_ERROR="There was an error sending the command, please make sure odrive agent or desktop is running."
+#==============================================================================
+# Functions
+#==============================================================================
+function latest_sync_log
+{
+    echo "$(ls -1rt $ODRIVE_LOG.* | tail -n1)"
+}
+#==============================================================================
+function agent_is_running
+{
+    $FGREP "$AGENT_ERROR" $(latest_sync_log) >/dev/null 2>&1
+    return $((! $?))
+}
+#==============================================================================
+function start_agent
+{
+    nohup $HOME/bin/odrive_agent >/dev/null 2>&1 &
+}
+#==============================================================================
+function start_sync
+{
+    nohup $HOME/bin/odrive_sync >/dev/null 2>&1 &
+}
+#==============================================================================
+# MAIN
+#==============================================================================
+
+kill_other_instances
+
+agent_off_counter=0
+is_running=false
+
+log "monitoring started..."
+while true; do
+    if agent_is_running; then
+        if ! $is_running; then
+            log "the odrive agent is running"
+            is_running=true
+        else
+            sleep $MONITOR_WAIT_S
+        fi
+    else
+        is_running=false
+        ((agent_off_counter += 1))
+        log "the odrive agent is not responding (down times: $agent_off_counter)"
+        log "starting the odrive agent..."
+        start_agent
+        log "waiting ${WAIT_FOR_AGENT_S}s for the agent to get ready..."
+        sleep $WAIT_FOR_AGENT_S
+        log "starting a sync..."
+        start_sync
+        sleep $MONITOR_WAIT_S
+    fi
+done

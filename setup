@@ -1,5 +1,4 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 
 #=================================== FUNC =====================================
 function is_installed
@@ -9,12 +8,15 @@ function is_installed
     return $?
 }
 
-function FATAL
+function warn
 {
-    exit_code=$1
-    shift
     echo "$@" >&2
-    exit $exit_code
+}
+
+function exit_with_msg
+{
+    warn $@
+    exit 1
 }
 
 function force_home_links
@@ -29,9 +31,14 @@ function force_home_links
 
 
 #=================================== MAIN =====================================
+if $BATCH_MODE; then
+    ASSUME_YES="--assume-yes"
+else
+    ASSUME_YES=""
+fi
 
 if [ ! $(is_installed git) ]; then
-    FATAL 1 "missing git? this script should have been git cloned!"
+    exit_with_msg "missing git? this script should have been git cloned!"
 fi
 
 CFG_DIR=$HOME/cfg
@@ -39,11 +46,12 @@ if [ ! -d $CFG_DIR ]; then
     if [[ "$(basename $PWD)" = "$CFG_DIR" ]]; then
         CFG_DIR=$PWD
     else
-        FATAL 2 "Cannot find the $CFG_DIR directory!"
+        exit_with_msg "Cannot find the $CFG_DIR directory!"
     fi
 fi
 
 . $CFG_DIR/argparse
+. $CFG_DIR/.bash_functions
 
 echo "CFG_DIR:'$CFG_DIR'"
 
@@ -51,7 +59,7 @@ if [ "$MALNA" = true ]; then
     if [ ! $(is_installed expressvpn) ]; then
         express_vpn_installer="$(find $CFG_DIR -maxdepth 1 -name 'expressvpn*' -print -quit)"
         if [[ -z "$express_vpn_installer" ]]; then
-            FATAL 3 "put an expressvpn installer into $CFG_DIR/ and try again"
+            exit_with_msg "put an expressvpn installer into $CFG_DIR/ and try again"
         fi
         echo "ExpressVPN installer:'$express_vpn_installer'"
     fi
@@ -60,20 +68,19 @@ fi
 BIN_DIR=$HOME/bin
 if [ ! -d $BIN_DIR ]; then
     mkdir $BIN_DIR
-    if [ ! $? ]; then
-        FATAL 4 "Failed to create $BIN_DIR"
-    fi
+    crashburn "Failed to create $BIN_DIR"
 fi
 echo "BIN_DIR:'$BIN_DIR'"
 
 echo "let's start with making sure we have all the essential apps..."
 if [ "$MALNA" = true ]; then
     sudo apt-get update
-    sudo apt-get install cron htop man transmission-daemon vim
+    sudo apt-get $ASSUME_YES install build-essential cron htop make man procps transmission-daemon vim \
+        wget
 else
     if [ ! $(is_installed vim) ]; then
-        FATAL 5 "vim is missing!"
-    fi    
+        exit_with_msg "vim is missing!"
+    fi
 fi
 
 printf "setup git... "
@@ -94,13 +101,14 @@ if [ ! -d $TYPE_SCRIPT_SYNTAX_DIR ]; then
     git clone https://github.com/leafgarland/$TYPE_SCRIPT_SYNTAX.git $TYPE_SCRIPT_SYNTAX_DIR/$TYPE_SCRIPT_SYNTAX
 fi
 echo done
-    
+
 echo "setup locales..."
 DEFAULT_LOCALE=/etc/default/locale
 if [[ ! -f $DEFAULT_LOCALE || "$(tail -n1 /etc/default/locale | cut -f2 -d =)" != "$LANG" ]]; then
     sudo dpkg-reconfigure locales
     sudo update-locale
 fi
+echo done
 
 printf "setup bash... "
 . $CFG_DIR/.bash_envars
@@ -113,6 +121,133 @@ if [ "$MALNA" = true ]; then
         git clone https://github.com/magicmonty/bash-git-prompt.git $BASH_GIT_PROMPT_DIR --depth=1
     fi
 
+    PYTHON3=python3.9
+    if [ ! $(is_installed $PYTHON3) ]; then
+        if $BATCH_MODE; then
+            echo "Failed to detect $PYTHON3... installing it (takes ~2.5 hours)..."
+            choice="y"
+        else
+            read -p "Failed to detect $PYTHON3... shall we build it (takes ~2.5 hours)? (y/n) " choice
+        fi
+        if [ "$choice" = "y" ]; then
+            start=$(date +%s)
+
+            echo "... prerequisites ..."
+            sudo apt-get $ASSUME_YES install openssl zlib1g-dev
+
+            printf "... determining the system's openssl version: "
+            # without this build the ssl python module would be missing
+            # we use the same version what we have on the system thus at the end this whole build
+            # can be removed i.e. it is only needed while building $PYTHON3
+            OPEN_SSL_VERSION=$(openssl version | grep -oP "\d+\.\d+\.\d+[^ ]+")
+            crashburn
+            echo "$OPEN_SSL_VERSION ..."
+            OPEN_SSL=openssl-$OPEN_SSL_VERSION
+            SOURCE_TAR=$OPEN_SSL.tar.gz
+
+            SSL_SOURCE_ADDRESS=https://www.openssl.org/source/$SOURCE_TAR
+            echo "... download $SSL_SOURCE_ADDRESS ..."
+            SSL_INSTALL_DIR=/opt/openssl
+            sudo mkdir -p $SSL_INSTALL_DIR >/dev/null 2>&1
+            sudo wget -c $SSL_SOURCE_ADDRESS -o $SSL_INSTALL_DIR/$SOURCE_TAR
+            crashburn
+
+            cd $SSL_INSTALL_DIR
+            crashburn
+
+            echo "... unpack $SOURCE_TAR ..."
+            sudo tar -xzf $SOURCE_TAR
+            crashburn
+
+            echo "... configure $OPEN_SSL ..."
+            sudo ./config -fPIC -shared --prefix=$SSL_INSTALL_DIR --openssldir=$SSL_INSTALL_DIR
+            crashburn
+
+            echo "... build $OPEN_SSL ..."
+            sudo make
+            crashburn
+
+            echo "... install $OPEN_SSL under $SSL_INSTALL_DIR ..."
+            sudo make install
+            crashburn
+
+            cd -
+            crashburn
+
+            PY_BUILD_DIR=/tmp/python_build
+            echo "... creating $PY_BUILD_DIR ..."
+            mkdir -p $PY_BUILD_DIR >/dev/null 2>&1
+
+            cd $PY_BUILD_DIR
+            crashburn
+
+            PY_CONFIG_DIR=Python-3.9.0
+            PY_TAR_FILE=$PY_CONFIG_DIR.tgz
+            PY_SOURCE_ADDRESS=https://www.python.org/ftp/python/3.9.0/$PY_TAR_FILE
+            echo "... download $PY_SOURCE_ADDRESS ..."
+            wget -c $PY_SOURCE_ADDRESS
+            crashburn
+
+            echo "... unpack $PY_TAR_FILE ..."
+            tar -xzf $PY_TAR_FILE
+            crashburn
+
+            echo "... configure $PYTHON3 ..."
+            PY_SETUP=$PY_CONFIG_DIR/Modules/Setup
+            sed --in-place '
+                /SSL=/,/$(SSL).*[^\\]$/ {
+                    s/^#//
+                    s#^\(SSL=\).*$#\1/'$SSL_INSTALL_DIR'#
+                }
+            ' $PY_SETUP
+            PY_TARGET=/opt/$PYTHON3
+            $PY_CONFIG_DIR/configure --with-openssl=$SSL_INSTALL_DIR --prefix=$PY_TARGET --enable-optimizations
+            crashburn
+
+            echo "... build $PYTHON3 ..."
+            export LD_LIBRARY_PATH=$SSL_INSTALL_DIR/lib
+            make
+            crashburn
+
+            echo "... install $PYTHON3 ..."
+#            # without this hack install fails with
+#            OFFICIAL_LIB_DIR=/usr/lib/arm-linux-gnueabihf
+#            LIB_SSL=libssl.so.1.1
+#            LIB_CRYPTO=libcrypto.so.1.1
+#            sudo mv $OFFICIAL_LIB_DIR/$LIB_SSL $OFFICIAL_LIB_DIR/$LIB_SSL.old
+#            crashburn
+#            sudo cp $SSL_INSTALL_DIR/lib/$LIB_SSL $OFFICIAL_LIB_DIR/$LIB_SSL
+#            crashburn
+#            sudo mv $OFFICIAL_LIB_DIR/$LIB_CRYPTO $OFFICIAL_LIB_DIR/$LIB_CRYPTO.old
+#            crashburn
+#            sudo cp $SSL_INSTALL_DIR/lib/$LIB_CRYPTO $OFFICIAL_LIB_DIR/$LIB_CRYPTO
+#            crashburn
+            sudo make install
+            crashburn
+#            # revert the hack by restoring the original files
+#            sudo mv $OFFICIAL_LIB_DIR/$LIB_CRYPTO.old $OFFICIAL_LIB_DIR/$LIB_CRYPTO
+#            crashburn
+#            sudo mv $OFFICIAL_LIB_DIR/$LIB_SSL.old $OFFICIAL_LIB_DIR/$LIB_SSL
+#            crashburn
+            sudo ln -sf $PY_TARGET/bin/python3 /usr/bin/$PYTHON3
+            crashburn
+
+            cd -
+            crashburn
+
+            echo "... cleanup ..."
+            sudo rm -rf $PY_BUILD_DIR
+            crashburn
+            sudo rm -rf $SSL_INSTALL_DIR
+            crashburn
+
+            end=$(date +%s)
+            runtime=$((end-start))
+            echo "done (took ${runtime}s)"
+        else
+            echo skipped
+        fi
+    fi
 
     DIGI_DIR=$HOME/digionline
     if [ ! -d $DIGI_DIR ]; then
@@ -141,29 +276,34 @@ if [ "$MALNA" = true ]; then
     if [ ! -f $ODRIVE_AGENT ]; then
         wget https://dl.odrive.com/odriveagent-rpi -O - | tar -xz --directory=$ODRIVE_PATH
         if [ ! -f $ODRIVE_AGENT ]; then
-            FATAL 6 "Failed to install '$ODRIVE_AGENT'"
+            exit_with_msg "Failed to install '$ODRIVE_AGENT'"
         fi
     fi
     if [ ! -f $ODRIVE ]; then
         wget https://dl.odrive.com/odrive-py -O $ODRIVE
         if [ ! -f $ODRIVE ]; then
-            FATAL 7 "Failed to install '$ODRIVE'"
+            exit_with_msg "Failed to install '$ODRIVE'"
         fi
     fi
     if [ ! -f $ODRIVE_AUTH_KEY_FILE ]; then
-        touch $ODRIVE_AUTH_KEY_FILE
-        chmod 600 $ODRIVE_AUTH_KEY_FILE
-        read -p "please type in your secret odrive auth key: " auth_key
-        echo "$auth_key" > $ODRIVE_AUTH_KEY_FILE
-        chmod 400 $ODRIVE_AUTH_KEY_FILE
-        . $CFG_DIR/.bash_envars  # to populate ODRIVE_AUTH_KEY from the new file
-        if [ -z "$ODRIVE_AUTH_KEY" ]; then
-            FATAL 8 "The odrive auth key is still empty... ¯\_(ツ)_/¯"
+        if $BATCH_MODE; then
+            warn "Please create $ODRIVE_AUTH_KEY_FILE later on"
+        else
+            touch $ODRIVE_AUTH_KEY_FILE
+            chmod 600 $ODRIVE_AUTH_KEY_FILE
+            read -p "please type in your secret odrive auth key: " auth_key
+            echo "$auth_key" > $ODRIVE_AUTH_KEY_FILE
+            chmod 400 $ODRIVE_AUTH_KEY_FILE
+            . $CFG_DIR/.bash_envars  # to populate ODRIVE_AUTH_KEY from the new file
+            if [ -z "$ODRIVE_AUTH_KEY" ]; then
+                exit_with_msg "The odrive auth key is still empty... ¯\_(ツ)_/¯"
+            fi
         fi
     fi
     ln -sf $CFG_DIR/odrive_common $BIN_DIR/odrive_common
-    ln -sf $CFG_DIR/odrive_reboot $BIN_DIR/odrive_reboot
+    ln -sf $CFG_DIR/odrive_agent $BIN_DIR/odrive_agent
     ln -sf $CFG_DIR/odrive_sync $BIN_DIR/odrive_sync
+    ln -sf $CFG_DIR/monodrive $BIN_DIR/monodrive
     echo done
 
     OLD_CRON="/var/tmp/crontab.old"
@@ -177,12 +317,18 @@ if [ "$MALNA" = true ]; then
 
     echo "setup transmission..."
     sudo systemctl stop transmission-daemon
-    echo "please configure the daemon"
-    sleep 5
-    sudo vim /etc/transmission-daemon/settings.json
+    TRANSMISSION_DAEMON_CFG=/etc/transmission-daemon/settings.json
+    if $BATCH_MODE; then
+        warn "To configure the transmission daemon stop it, edit $TRANSMISSION_DAEMON_CFG, then start it"
+    else
+        echo "please configure the daemon"
+        sleep 5
+        sudo vim $TRANSMISSION_DAEMON_CFG
+    fi
     sudo usermod -a -G debian-transmission $USER
+    START_DAEMON_CMD=sudo systemctl start transmission-daemon
     sudo systemctl start transmission-daemon
 
     echo "setup samba..."
-    sudo apt-get install smb-app-osmc # must be the last step, it exits at the end...
+    sudo apt-get $ASSUME_YES install smb-app-osmc # must be the last step, it exits at the end...
 fi

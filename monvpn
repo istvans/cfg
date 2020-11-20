@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #==============================================================================
 # add to crontab like this:
 # @reboot $HOME/bin/monvpn >/var/tmp/monvpn.log 2>&1
@@ -41,20 +41,6 @@ function connect_server
     log "${opt_prefix}connecting to ${servers[$conn_id]} (failures: $fail_counter)"
     $VPN connect ${servers[$conn_id]}
     sleep $RECONNECT_WAIT_S
-}
-#==============================================================================
-# allow only one instance of the monitor
-function kill_other_instances
-{
-    if [[ -n "$VPNMON_INSTANCE_NAME" ]]; then
-        log "own pid: $$"
-        for pid in $($PGREP -f "$VPNMON_INSTANCE_NAME"); do
-            if [ $pid -ne $$ ]; then
-                log "killing pid: $pid"
-                /bin/kill $pid
-            fi
-        done
-    fi
 }
 #==============================================================================
 # MAIN

@@ -11,8 +11,13 @@
 # to ensure the VPN is connected after start-up
 @reboot         $HOME/bin/monvpn >/var/tmp/monvpn.log 2>&1
 # start up the odrive agent with some delay to allow the network to come up
-@reboot         /bin/sleep 120; $HOME/bin/odrive_reboot
+@reboot         /bin/sleep 120; $HOME/bin/odrive_agent
+# start up the odrive agent monitoring to ensure syncing can finish
+@reboot         /bin/sleep 300; $HOME/bin/monodrive >/var/tmp/monodrive.log 2>&1
 # odrive scan for new cloud content
-0 2 * * *       $HOME/bin/odrive_sync
+# --temporarily disabled-- normal schedule:
+# 0 2 * * *       $HOME/bin/odrive_sync
+# temporary schedule to sync everything
+@reboot         /bin/sleep 200; $HOME/bin/odrive_sync
 # to ensure digionline logs cannot grow forever
 0 5 * * mon     /usr/sbin/service digionline restart
