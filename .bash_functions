@@ -25,7 +25,17 @@ function get_log_date
 #==============================================================================
 function __log
 {
-    echo "$(get_log_date) $@"
+    level=$1
+    shift
+    if [[ $1 =~ @single_line_start@ ]]; then
+        shift
+        printf "%s %s " "$(get_log_date)" "$@"
+    elif [[ $1 =~ @single_line_end@ ]]; then
+        shift
+        echo $@
+    else
+        echo "$(get_log_date) $level $@"
+    fi
 }
 #==============================================================================
 function info

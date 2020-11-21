@@ -26,7 +26,7 @@ fi
 . $CFG_DIR/.bash_functions  # import is_installed, fatal_error, crashburn, warn, info, error
 . $CFG_DIR/.bash_envars  # import LANG and many more...
 
-echo "CFG_DIR:'$CFG_DIR'"
+info "CFG_DIR:'$CFG_DIR'"
 
 if $BATCH_MODE; then
     ASSUME_YES="--assume-yes"
@@ -44,11 +44,11 @@ if [ "$MALNA" = true ]; then
         if [[ -z "$express_vpn_installer" ]]; then
             fatal_error "put an expressvpn installer into $CFG_DIR/ and try again"
         fi
-        echo "ExpressVPN installer:'$express_vpn_installer'"
+        info "ExpressVPN installer:'$express_vpn_installer'"
     fi
 fi
 
-echo "setup locale..."
+info "setup locale..."
 DEFAULT_LOCALE=/etc/default/locale
 if [[ ! -f $DEFAULT_LOCALE || "$(tail -n1 /etc/default/locale | cut -f2 -d =)" != "$LANG" ]]; then
     if $BATCH_MODE; then
@@ -58,16 +58,16 @@ if [[ ! -f $DEFAULT_LOCALE || "$(tail -n1 /etc/default/locale | cut -f2 -d =)" !
     sudo dpkg-reconfigure locales
     sudo update-locale
 fi
-echo done
+info done
 
 BIN_DIR=$HOME/bin
 if [ ! -d $BIN_DIR ]; then
     mkdir $BIN_DIR
     crashburn
 fi
-echo "BIN_DIR:'$BIN_DIR'"
+info "BIN_DIR:'$BIN_DIR'"
 
-echo "let's start with making sure we have all the essential apps..."
+info "let's start with making sure we have all the essential apps..."
 if [ "$MALNA" = true ]; then
     sudo apt-get update
     sudo apt-get $ASSUME_YES install build-essential cron htop make man procps transmission-daemon vim \
@@ -78,7 +78,7 @@ else
     fi
 fi
 
-printf "setup git... "
+info @single_line_start@ "setup git..."
 git config --global user.email "stevesiroki@gmail.com"
 git config --global user.name "István Siroki"
 git config --global core.editor "vim"
@@ -86,20 +86,20 @@ git config --global alias.lg "log --color --graph --pretty=format:'%Cred%h%Crese
 if [ "$MALNA" = true ]; then
     git config --global credential.helper 'cache --timeout=3600'
 fi
-echo done
+info @single_line_end@ done
 
-printf "setup vim... "
+info @single_line_start@ "setup vim..."
 TYPE_SCRIPT_SYNTAX="typescript-vim"
 TYPE_SCRIPT_SYNTAX_DIR="$HOME/.vim/pack/typescript/start"
 if [ ! -d $TYPE_SCRIPT_SYNTAX_DIR ]; then
     mkdir -p $TYPE_SCRIPT_SYNTAX_DIR
     git clone https://github.com/leafgarland/$TYPE_SCRIPT_SYNTAX.git $TYPE_SCRIPT_SYNTAX_DIR/$TYPE_SCRIPT_SYNTAX
 fi
-echo done
+info @single_line_end@ done
 
-printf "setup bash... "
+info @single_line_start@ "setup bash..."
 force_home_links .bash_profile .bashrc .bash_aliases .bash_envars .bash_functions .vimrc
-echo done
+info @single_line_end@ done
 
 if [ "$MALNA" = true ]; then
     BASH_GIT_PROMPT_DIR=$HOME/$BASH_GIT_PROMPT
@@ -110,7 +110,7 @@ if [ "$MALNA" = true ]; then
     PYTHON3=python3.9
     if [ ! $(is_installed $PYTHON3) ]; then
         if $BATCH_MODE; then
-            echo "Failed to detect $PYTHON3... installing it (takes ~2.5 hours)..."
+            warn "Failed to detect $PYTHON3... installing it (takes ~2.5 hours)..."
             choice="y"
         else
             read -p "Failed to detect $PYTHON3... shall we build it (takes ~2.5 hours)? (y/n) " choice
@@ -118,42 +118,42 @@ if [ "$MALNA" = true ]; then
         if [ "$choice" = "y" ]; then
             start=$(date +%s)
 
-            echo "... prerequisites ..."
+            info "... prerequisites ..."
             sudo apt-get $ASSUME_YES install openssl zlib1g-dev
 
-            printf "... determining the system's openssl version: "
+            info @single_line_start@ "... determining the system's openssl version:"
             # without this build the ssl python module would be missing
             # we use the same version what we have on the system thus at the end this whole build
             # can be removed i.e. it is only needed while building $PYTHON3
             OPEN_SSL_VERSION=$(openssl version | grep -oP "\d+\.\d+\.\d+[^ ]+")
             crashburn
-            echo "$OPEN_SSL_VERSION ..."
+            info @single_line_end@ "$OPEN_SSL_VERSION ..."
             OPEN_SSL=openssl-$OPEN_SSL_VERSION
             SOURCE_TAR=$OPEN_SSL.tar.gz
 
             SSL_SOURCE_ADDRESS=https://www.openssl.org/source/$SOURCE_TAR
-            echo "... download $SSL_SOURCE_ADDRESS ..."
+            info "... download $SSL_SOURCE_ADDRESS ..."
             SSL_INSTALL_DIR=/opt/openssl
             sudo mkdir -p $SSL_INSTALL_DIR >/dev/null 2>&1
             sudo wget -c $SSL_SOURCE_ADDRESS --directory-prefix=$SSL_INSTALL_DIR
             crashburn
 
-            cd $SSL_INSTALL_DIR
+            info "... unpack $SOURCE_TAR ..."
+            sudo tar -xzf $SSL_INSTALL_DIR/$SOURCE_TAR --directory=$SSL_INSTALL_DIR
             crashburn
 
-            echo "... unpack $SOURCE_TAR ..."
-            sudo tar -xzf $SOURCE_TAR
+            cd $SSL_INSTALL_DIR/$OPEN_SSL
             crashburn
 
-            echo "... configure $OPEN_SSL ..."
+            info "... configure $OPEN_SSL ..."
             sudo ./config -fPIC -shared --prefix=$SSL_INSTALL_DIR --openssldir=$SSL_INSTALL_DIR
             crashburn
 
-            echo "... build $OPEN_SSL ..."
+            info "... build $OPEN_SSL ..."
             sudo make
             crashburn
 
-            echo "... install $OPEN_SSL under $SSL_INSTALL_DIR ..."
+            info "... install $OPEN_SSL under $SSL_INSTALL_DIR ..."
             sudo make install
             crashburn
 
@@ -161,7 +161,7 @@ if [ "$MALNA" = true ]; then
             crashburn
 
             PY_BUILD_DIR=/tmp/python_build
-            echo "... creating $PY_BUILD_DIR ..."
+            info "... creating $PY_BUILD_DIR ..."
             mkdir -p $PY_BUILD_DIR >/dev/null 2>&1
 
             cd $PY_BUILD_DIR
@@ -170,15 +170,15 @@ if [ "$MALNA" = true ]; then
             PY_CONFIG_DIR=Python-3.9.0
             PY_TAR_FILE=$PY_CONFIG_DIR.tgz
             PY_SOURCE_ADDRESS=https://www.python.org/ftp/python/3.9.0/$PY_TAR_FILE
-            echo "... download $PY_SOURCE_ADDRESS ..."
+            info "... download $PY_SOURCE_ADDRESS ..."
             wget -c $PY_SOURCE_ADDRESS
             crashburn
 
-            echo "... unpack $PY_TAR_FILE ..."
+            info "... unpack $PY_TAR_FILE ..."
             tar -xzf $PY_TAR_FILE
             crashburn
 
-            echo "... configure $PYTHON3 ..."
+            info "... configure $PYTHON3 ..."
             PY_SETUP=$PY_CONFIG_DIR/Modules/Setup
             sed --in-place '
                 /SSL=/,/$(SSL).*[^\\]$/ {
@@ -190,12 +190,12 @@ if [ "$MALNA" = true ]; then
             $PY_CONFIG_DIR/configure --with-openssl=$SSL_INSTALL_DIR --prefix=$PY_TARGET --enable-optimizations
             crashburn
 
-            echo "... build $PYTHON3 ..."
+            info "... build $PYTHON3 ..."
             export LD_LIBRARY_PATH=$SSL_INSTALL_DIR/lib
             make
             crashburn
 
-            echo "... install $PYTHON3 ..."
+            info "... install $PYTHON3 ..."
 #            # without this hack install fails with
 #            OFFICIAL_LIB_DIR=/usr/lib/arm-linux-gnueabihf
 #            LIB_SSL=libssl.so.1.1
@@ -221,7 +221,7 @@ if [ "$MALNA" = true ]; then
             cd -
             crashburn
 
-            echo "... cleanup ..."
+            info "... cleanup ..."
             sudo rm -rf $PY_BUILD_DIR
             crashburn
             sudo rm -rf $SSL_INSTALL_DIR
@@ -229,21 +229,21 @@ if [ "$MALNA" = true ]; then
 
             end=$(date +%s)
             runtime=$((end-start))
-            echo "done (took ${runtime}s)"
+            info "done (took ${runtime}s)"
         else
-            echo skipped
+            info skipped
         fi
     fi
 
     DIGI_DIR=$HOME/digionline
     if [ ! -d $DIGI_DIR ]; then
-        echo "setup digionline under $DIGI_DIR..."
+        info "setup digionline under $DIGI_DIR..."
         git clone https://github.com/istvans/digionline.git $DIGI_DIR
         $DIGI_DIR/osmc_installer.sh
     fi
 
     if [ ! $(is_installed expressvpn) ]; then
-        echo "setup expressvpn..."
+        info "setup expressvpn..."
         sudo dpkg -i $express_vpn_installer
         expressvpn activate
         expressvpn autoconnect on
@@ -251,11 +251,11 @@ if [ "$MALNA" = true ]; then
     fi
     expressvpn preferences
 
-    printf "install VPN monitor... "
+    info @single_line_start@ "install VPN monitor..."
     ln -sf $CFG_DIR/monvpn $BIN_DIR/monvpn
-    echo done
+    info @single_line_end@ done
 
-    echo "setup odrive..."
+    info "setup odrive..."
     if [ ! -d $ODRIVE_PATH ]; then
         mkdir -p $ODRIVE_PATH
     fi
@@ -290,24 +290,24 @@ if [ "$MALNA" = true ]; then
     ln -sf $CFG_DIR/odrive_agent $BIN_DIR/odrive_agent
     ln -sf $CFG_DIR/odrive_sync $BIN_DIR/odrive_sync
     ln -sf $CFG_DIR/monodrive $BIN_DIR/monodrive
-    echo done
+    info done
 
     OLD_CRON="/var/tmp/crontab.old"
-    printf "saving old crontab to '$OLD_CRON'... "
+    info @single_line_start@ "saving old crontab to '$OLD_CRON'..."
     crontab -l > $OLD_CRON
-    echo done
+    info @single_line_end@ done
 
-    printf "install crontab... "
+    info @single_line_start@ "install crontab..."
     crontab $CFG_DIR/cron
-    echo done
+    info @single_line_end@ done
 
-    echo "setup transmission..."
+    info "setup transmission..."
     sudo systemctl stop transmission-daemon
     TRANSMISSION_DAEMON_CFG=/etc/transmission-daemon/settings.json
     if $BATCH_MODE; then
         warn "To configure the transmission daemon stop it, edit $TRANSMISSION_DAEMON_CFG, then restart it"
     else
-        echo "please configure the daemon"
+        echo "please configure the daemon" >&2
         sleep 5
         sudo vim $TRANSMISSION_DAEMON_CFG
     fi
@@ -315,6 +315,7 @@ if [ "$MALNA" = true ]; then
     START_DAEMON_CMD=sudo systemctl start transmission-daemon
     sudo systemctl start transmission-daemon
 
-    echo "setup samba..."
+    info "setup samba..."
+    # TODO can we prevent this to exit the shell somehow?
     sudo apt-get $ASSUME_YES install smb-app-osmc # must be the last step, it exits at the end...
 fi
