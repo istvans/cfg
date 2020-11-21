@@ -32,7 +32,7 @@ function __log
         printf "%s %s %s" "$(get_log_date)" "$level" "$@"
     elif [[ $1 =~ @single_line_end@ ]]; then
         shift
-        echo $@
+        echo " $@"
     else
         echo "$(get_log_date) $level $@"
     fi
@@ -40,17 +40,17 @@ function __log
 #==============================================================================
 function info
 {
-    __log INFO $@
+    __log INFO "$@"
 }
 #==============================================================================
 function warn
 {
-    __log WARNING $@ >&2
+    __log WARNING "$@" >&2
 }
 #==============================================================================
 function error
 {
-    __log ERROR $@ >&2
+    __log ERROR "$@" >&2
 }
 #==============================================================================
 function crashburn
