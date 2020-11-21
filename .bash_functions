@@ -98,9 +98,10 @@ function fatal_error
 #==============================================================================
 function kill_other_instances
 {
-    if [[ -n "$VPNMON_INSTANCE_NAME" ]]; then
+    local instance_name=$1
+    if [[ -n "$instance_name" ]]; then
         info "own pid: $$"
-        for pid in $(/usr/bin/pgrep -f "$VPNMON_INSTANCE_NAME"); do
+        for pid in $(/usr/bin/pgrep -f "$instance_name"); do
             if [ $pid -ne $$ ]; then
                 warn "killing pid: $pid"
                 /bin/kill $pid

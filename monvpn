@@ -46,7 +46,7 @@ function connect_server
 # MAIN
 #==============================================================================
 
-kill_other_instances
+kill_other_instances "$(basename "$0")"
 
 # ensure connection to one of the listed servers
 # if connection fails, try reconnecting and wait RECONNECT_WAIT_S

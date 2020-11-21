@@ -43,7 +43,7 @@ function start_sync
 # MAIN
 #==============================================================================
 
-kill_other_instances
+kill_other_instances "$(basename "$0")"
 
 agent_off_counter=0
 is_running=false
