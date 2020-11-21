@@ -29,7 +29,7 @@ function __log
     shift
     if [[ $1 =~ @single_line_start@ ]]; then
         shift
-        printf "%s %s " "$(get_log_date)" "$@"
+        printf "%s %s %s" "$(get_log_date)" "$level" "$@"
     elif [[ $1 =~ @single_line_end@ ]]; then
         shift
         echo $@
