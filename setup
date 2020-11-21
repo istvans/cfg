@@ -1,24 +1,5 @@
 #!/usr/bin/env bash
-
 #=================================== FUNC =====================================
-function is_installed
-{
-    app=$1
-    which $app
-    return $?
-}
-
-function warn
-{
-    echo "$@" >&2
-}
-
-function exit_with_msg
-{
-    warn $@
-    exit 1
-}
-
 function force_home_links
 {
      for file in $@; do
@@ -28,9 +9,25 @@ function force_home_links
          fi
      done
 }
-
-
+#==============================================================================
 #=================================== MAIN =====================================
+#==============================================================================
+CFG_DIR=$HOME/cfg
+if [ ! -d $CFG_DIR ]; then
+    if [[ "$(basename $PWD)" = "$CFG_DIR" ]]; then
+        CFG_DIR=$PWD
+    else
+        echo "ERROR Cannot find the $CFG_DIR directory!" >&2
+        exit 1
+    fi
+fi
+
+. $CFG_DIR/argparse  # import MALNA, BATCH_MODE
+. $CFG_DIR/.bash_functions  # import is_installed, fatal_error, crashburn, warn, info, error
+. $CFG_DIR/.bash_envars  # import LANG and many more...
+
+echo "CFG_DIR:'$CFG_DIR'"
+
 if $BATCH_MODE; then
     ASSUME_YES="--assume-yes"
 else
@@ -38,37 +35,35 @@ else
 fi
 
 if [ ! $(is_installed git) ]; then
-    exit_with_msg "missing git? this script should have been git cloned!"
+    fatal_error "missing git? this script should have been git cloned!"
 fi
-
-CFG_DIR=$HOME/cfg
-if [ ! -d $CFG_DIR ]; then
-    if [[ "$(basename $PWD)" = "$CFG_DIR" ]]; then
-        CFG_DIR=$PWD
-    else
-        exit_with_msg "Cannot find the $CFG_DIR directory!"
-    fi
-fi
-
-. $CFG_DIR/argparse
-. $CFG_DIR/.bash_functions
-
-echo "CFG_DIR:'$CFG_DIR'"
 
 if [ "$MALNA" = true ]; then
     if [ ! $(is_installed expressvpn) ]; then
         express_vpn_installer="$(find $CFG_DIR -maxdepth 1 -name 'expressvpn*' -print -quit)"
         if [[ -z "$express_vpn_installer" ]]; then
-            exit_with_msg "put an expressvpn installer into $CFG_DIR/ and try again"
+            fatal_error "put an expressvpn installer into $CFG_DIR/ and try again"
         fi
         echo "ExpressVPN installer:'$express_vpn_installer'"
     fi
 fi
 
+echo "setup locale..."
+DEFAULT_LOCALE=/etc/default/locale
+if [[ ! -f $DEFAULT_LOCALE || "$(tail -n1 /etc/default/locale | cut -f2 -d =)" != "$LANG" ]]; then
+    if $BATCH_MODE; then
+        # TODO Is there a way to do this in a non-interactive way?
+        fatal_error "$DEFAULT_LOCALE setup is needed which cannot be done in batch mode"
+    fi
+    sudo dpkg-reconfigure locales
+    sudo update-locale
+fi
+echo done
+
 BIN_DIR=$HOME/bin
 if [ ! -d $BIN_DIR ]; then
     mkdir $BIN_DIR
-    crashburn "Failed to create $BIN_DIR"
+    crashburn
 fi
 echo "BIN_DIR:'$BIN_DIR'"
 
@@ -79,7 +74,7 @@ if [ "$MALNA" = true ]; then
         wget
 else
     if [ ! $(is_installed vim) ]; then
-        exit_with_msg "vim is missing!"
+        fatal_error "vim is missing!"
     fi
 fi
 
@@ -102,16 +97,7 @@ if [ ! -d $TYPE_SCRIPT_SYNTAX_DIR ]; then
 fi
 echo done
 
-echo "setup locales..."
-DEFAULT_LOCALE=/etc/default/locale
-if [[ ! -f $DEFAULT_LOCALE || "$(tail -n1 /etc/default/locale | cut -f2 -d =)" != "$LANG" ]]; then
-    sudo dpkg-reconfigure locales
-    sudo update-locale
-fi
-echo done
-
 printf "setup bash... "
-. $CFG_DIR/.bash_envars
 force_home_links .bash_profile .bashrc .bash_aliases .bash_envars .bash_functions .vimrc
 echo done
 
@@ -149,7 +135,7 @@ if [ "$MALNA" = true ]; then
             echo "... download $SSL_SOURCE_ADDRESS ..."
             SSL_INSTALL_DIR=/opt/openssl
             sudo mkdir -p $SSL_INSTALL_DIR >/dev/null 2>&1
-            sudo wget -c $SSL_SOURCE_ADDRESS -o $SSL_INSTALL_DIR/$SOURCE_TAR
+            sudo wget -c $SSL_SOURCE_ADDRESS --directory-prefix=$SSL_INSTALL_DIR
             crashburn
 
             cd $SSL_INSTALL_DIR
@@ -274,20 +260,20 @@ if [ "$MALNA" = true ]; then
         mkdir -p $ODRIVE_PATH
     fi
     if [ ! -f $ODRIVE_AGENT ]; then
-        wget https://dl.odrive.com/odriveagent-rpi -O - | tar -xz --directory=$ODRIVE_PATH
+        wget https://dl.odrive.com/odriveagent-rpi --output-document=- | tar -xz --directory=$ODRIVE_PATH
         if [ ! -f $ODRIVE_AGENT ]; then
-            exit_with_msg "Failed to install '$ODRIVE_AGENT'"
+            fatal_error "Failed to install '$ODRIVE_AGENT'"
         fi
     fi
     if [ ! -f $ODRIVE ]; then
-        wget https://dl.odrive.com/odrive-py -O $ODRIVE
+        wget https://dl.odrive.com/odrive-py --output-document=$ODRIVE
         if [ ! -f $ODRIVE ]; then
-            exit_with_msg "Failed to install '$ODRIVE'"
+            fatal_error "Failed to install '$ODRIVE'"
         fi
     fi
     if [ ! -f $ODRIVE_AUTH_KEY_FILE ]; then
         if $BATCH_MODE; then
-            warn "Please create $ODRIVE_AUTH_KEY_FILE later on"
+            warn "Please create $ODRIVE_AUTH_KEY_FILE before the next reboot"
         else
             touch $ODRIVE_AUTH_KEY_FILE
             chmod 600 $ODRIVE_AUTH_KEY_FILE
@@ -295,8 +281,8 @@ if [ "$MALNA" = true ]; then
             echo "$auth_key" > $ODRIVE_AUTH_KEY_FILE
             chmod 400 $ODRIVE_AUTH_KEY_FILE
             . $CFG_DIR/.bash_envars  # to populate ODRIVE_AUTH_KEY from the new file
-            if [ -z "$ODRIVE_AUTH_KEY" ]; then
-                exit_with_msg "The odrive auth key is still empty... ¯\_(ツ)_/¯"
+            if [[ -z "$ODRIVE_AUTH_KEY" ]]; then
+                fatal_error "The odrive auth key is still empty... ¯\_(ツ)_/¯"
             fi
         fi
     fi
@@ -319,7 +305,7 @@ if [ "$MALNA" = true ]; then
     sudo systemctl stop transmission-daemon
     TRANSMISSION_DAEMON_CFG=/etc/transmission-daemon/settings.json
     if $BATCH_MODE; then
-        warn "To configure the transmission daemon stop it, edit $TRANSMISSION_DAEMON_CFG, then start it"
+        warn "To configure the transmission daemon stop it, edit $TRANSMISSION_DAEMON_CFG, then restart it"
     else
         echo "please configure the daemon"
         sleep 5
