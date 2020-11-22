@@ -71,7 +71,7 @@ info "let's start with making sure we have all the essential apps..."
 if [ "$MALNA" = true ]; then
     sudo apt-get update
     sudo apt-get $ASSUME_YES install build-essential cron htop make man procps transmission-daemon vim \
-        wget
+        wget network-manager
 else
     if [ ! $(is_installed vim) ]; then
         fatal_error "vim is missing!"
