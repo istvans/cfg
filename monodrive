@@ -48,11 +48,11 @@ kill_other_instances "$(basename "$0")"
 agent_off_counter=0
 is_running=false
 
-log "monitoring started..."
+info "monitoring started..."
 while true; do
     if agent_is_running; then
         if ! $is_running; then
-            log "the odrive agent is running"
+            info "the odrive agent is running"
             is_running=true
         else
             sleep $MONITOR_WAIT_S
@@ -60,12 +60,12 @@ while true; do
     else
         is_running=false
         ((agent_off_counter += 1))
-        log "the odrive agent is not responding (down times: $agent_off_counter)"
-        log "starting the odrive agent..."
+        warn "the odrive agent is not responding (down times: $agent_off_counter)"
+        info "starting the odrive agent..."
         start_agent
-        log "waiting ${WAIT_FOR_AGENT_S}s for the agent to get ready..."
+        info "waiting ${WAIT_FOR_AGENT_S}s for the agent to get ready..."
         sleep $WAIT_FOR_AGENT_S
-        log "starting a sync..."
+        info "starting a sync..."
         start_sync
         sleep $MONITOR_WAIT_S
     fi

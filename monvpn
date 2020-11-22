@@ -38,7 +38,7 @@ function service_is_running
 function connect_server
 {
     $was_connected && opt_prefix="re"
-    log "${opt_prefix}connecting to ${servers[$conn_id]} (failures: $fail_counter)"
+    info "${opt_prefix}connecting to ${servers[$conn_id]} (failures: $fail_counter)"
     $VPN connect ${servers[$conn_id]}
     sleep $RECONNECT_WAIT_S
 }
@@ -54,18 +54,18 @@ kill_other_instances "$(basename "$0")"
 # try the second server and so on
 
 servers=("smart" "Hungary")
-log "servers: ${servers[*]}"
+info "servers: ${servers[*]}"
 
 conn_id=0
 fail_counter=0
 was_connected=false
 connected=false
 
-log "monitoring started..."
+info "monitoring started..."
 while true; do
     if is_connected; then
         if ! $connected; then
-            log "connected to ${servers[$conn_id]}"
+            info "connected to ${servers[$conn_id]}"
             fail_counter=0
             connected=true
             was_connected=true
@@ -83,7 +83,7 @@ while true; do
             fi
             connect_server
         else
-            log "the vpn service is not running!!!"
+            warn "the vpn service is not running!!!"
             sleep $RECONNECT_WAIT_S
         fi
     fi
