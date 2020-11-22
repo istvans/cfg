@@ -119,7 +119,7 @@ if [ "$MALNA" = true ]; then
             start=$(date +%s)
 
             info "... prerequisites ..."
-            sudo apt-get $ASSUME_YES install openssl zlib1g-dev
+            sudo apt-get $ASSUME_YES install openssl zlib1g-dev libffi-dev
 
             info @single_line_start@ "... determining the system's openssl version:"
             # without this build the ssl python module would be missing
