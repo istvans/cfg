@@ -8,4 +8,5 @@ alias lessc="less -r"
 alias lrt="ls -lrt"
 alias cpg="rsync --partial --progress --append --rsh=ssh -r -h"
 alias mvg="rsync --partial --progress --append --rsh=ssh -r -h --remove-sent-files"
-alias pipenv3=python3.9 -m pipenv
+alias pipenv3.9="python3.9 -m pipenv"
+alias pip3.9="python3.9 -m pip"

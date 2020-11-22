@@ -58,7 +58,7 @@ if [[ ! -f $DEFAULT_LOCALE || "$(tail -n1 /etc/default/locale | cut -f2 -d =)" !
     sudo dpkg-reconfigure locales
     sudo update-locale
 fi
-info done
+info OK
 
 BIN_DIR=$HOME/bin
 if [ ! -d $BIN_DIR ]; then
@@ -86,7 +86,7 @@ git config --global alias.lg "log --color --graph --pretty=format:'%Cred%h%Crese
 if [ "$MALNA" = true ]; then
     git config --global credential.helper 'cache --timeout=3600'
 fi
-info @single_line_end@ done
+info @single_line_end@ OK
 
 info @single_line_start@ "setup vim..."
 TYPE_SCRIPT_SYNTAX="typescript-vim"
@@ -95,11 +95,11 @@ if [ ! -d $TYPE_SCRIPT_SYNTAX_DIR ]; then
     mkdir -p $TYPE_SCRIPT_SYNTAX_DIR
     git clone https://github.com/leafgarland/$TYPE_SCRIPT_SYNTAX.git $TYPE_SCRIPT_SYNTAX_DIR/$TYPE_SCRIPT_SYNTAX
 fi
-info @single_line_end@ done
+info @single_line_end@ OK
 
 info @single_line_start@ "setup bash..."
 force_home_links .bash_profile .bashrc .bash_aliases .bash_envars .bash_functions .vimrc
-info @single_line_end@ done
+info @single_line_end@ OK
 
 if [ "$MALNA" = true ]; then
     BASH_GIT_PROMPT_DIR=$HOME/$BASH_GIT_PROMPT
@@ -196,26 +196,17 @@ if [ "$MALNA" = true ]; then
             crashburn
 
             info "... install $PYTHON3 ..."
-#            # without this hack install fails with
-#            OFFICIAL_LIB_DIR=/usr/lib/arm-linux-gnueabihf
-#            LIB_SSL=libssl.so.1.1
-#            LIB_CRYPTO=libcrypto.so.1.1
-#            sudo mv $OFFICIAL_LIB_DIR/$LIB_SSL $OFFICIAL_LIB_DIR/$LIB_SSL.old
-#            crashburn
-#            sudo cp $SSL_INSTALL_DIR/lib/$LIB_SSL $OFFICIAL_LIB_DIR/$LIB_SSL
-#            crashburn
-#            sudo mv $OFFICIAL_LIB_DIR/$LIB_CRYPTO $OFFICIAL_LIB_DIR/$LIB_CRYPTO.old
-#            crashburn
-#            sudo cp $SSL_INSTALL_DIR/lib/$LIB_CRYPTO $OFFICIAL_LIB_DIR/$LIB_CRYPTO
-#            crashburn
             sudo make install
             crashburn
-#            # revert the hack by restoring the original files
-#            sudo mv $OFFICIAL_LIB_DIR/$LIB_CRYPTO.old $OFFICIAL_LIB_DIR/$LIB_CRYPTO
-#            crashburn
-#            sudo mv $OFFICIAL_LIB_DIR/$LIB_SSL.old $OFFICIAL_LIB_DIR/$LIB_SSL
-#            crashburn
             sudo ln -sf $PY_TARGET/bin/python3 /usr/bin/$PYTHON3
+            crashburn
+
+            info "... install pip and pipenv ..."
+            wget https://bootstrap.pypa.io/get-pip.py
+            crashburn
+            $PYTHON3 ./get-pip.py
+            crashburn
+            $PYTHON3 -m pip install pipenv
             crashburn
 
             cd -
@@ -239,28 +230,39 @@ if [ "$MALNA" = true ]; then
     if [ ! -d $DIGI_DIR ]; then
         info "setup digionline under $DIGI_DIR..."
         git clone https://github.com/istvans/digionline.git $DIGI_DIR
-        $DIGI_DIR/osmc_installer.sh
+        DIGI_INSTALLER=$DIGI_DIR/osmc_installer.sh
+        if $BATCH_MODE; then
+            # TODO implement batch mode in osmc_installer.sh?
+            warn "Run $DIGI_INSTALLER after this setup (needs interactive mode)"
+        else
+            sudo $DIGI_INSTALLER
+            crashburn
+        fi
     fi
 
     if [ ! $(is_installed expressvpn) ]; then
         info "setup expressvpn..."
         sudo dpkg -i $express_vpn_installer
-        expressvpn activate
-        expressvpn autoconnect on
-        expressvpn connect $VPN_SERVER
+        if $BATCH_MODE; then
+            warn "Activate the account and run the below steps manually"
+        else
+            expressvpn activate
+            expressvpn autoconnect on
+            expressvpn connect $VPN_SERVER
+        fi
     fi
     expressvpn preferences
 
     info @single_line_start@ "install VPN monitor..."
     ln -sf $CFG_DIR/monvpn $BIN_DIR/monvpn
-    info @single_line_end@ done
+    info @single_line_end@ OK
 
     info "setup odrive..."
-    if [ ! -d $ODRIVE_PATH ]; then
-        mkdir -p $ODRIVE_PATH
+    if [ ! -d $ODRIVE_BIN_PATH ]; then
+        mkdir -p $ODRIVE_BIN_PATH
     fi
     if [ ! -f $ODRIVE_AGENT ]; then
-        wget https://dl.odrive.com/odriveagent-rpi --output-document=- | tar -xz --directory=$ODRIVE_PATH
+        wget https://dl.odrive.com/odriveagent-rpi --output-document=- | tar -xz --directory=$ODRIVE_BIN_PATH
         if [ ! -f $ODRIVE_AGENT ]; then
             fatal_error "Failed to install '$ODRIVE_AGENT'"
         fi
@@ -290,16 +292,16 @@ if [ "$MALNA" = true ]; then
     ln -sf $CFG_DIR/odrive_agent $BIN_DIR/odrive_agent
     ln -sf $CFG_DIR/odrive_sync $BIN_DIR/odrive_sync
     ln -sf $CFG_DIR/monodrive $BIN_DIR/monodrive
-    info done
+    info OK
 
     OLD_CRON="/var/tmp/crontab.old"
     info @single_line_start@ "saving old crontab to '$OLD_CRON'..."
     crontab -l > $OLD_CRON
-    info @single_line_end@ done
+    info @single_line_end@ OK
 
     info @single_line_start@ "install crontab..."
     crontab $CFG_DIR/cron
-    info @single_line_end@ done
+    info @single_line_end@ OK
 
     info "setup transmission..."
     sudo systemctl stop transmission-daemon
@@ -314,6 +316,7 @@ if [ "$MALNA" = true ]; then
     sudo usermod -a -G debian-transmission $USER
     START_DAEMON_CMD=sudo systemctl start transmission-daemon
     sudo systemctl start transmission-daemon
+    info OK
 
     info "setup samba..."
     # TODO can we prevent this to exit the shell somehow?
