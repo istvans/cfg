@@ -21,3 +21,5 @@
 @reboot         /bin/sleep 200; $HOME/bin/odrive_sync
 # to ensure digionline logs cannot grow forever
 0 5 * * mon     /usr/sbin/service digionline restart
+# feed and teach our teve automagically
+0 20 * * *      $HOME/autoteve/run

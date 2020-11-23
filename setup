@@ -24,7 +24,7 @@ fi
 
 . $CFG_DIR/argparse  # import MALNA, BATCH_MODE
 . $CFG_DIR/.bash_functions  # import is_installed, fatal_error, crashburn, warn, info, error
-. $CFG_DIR/.bash_envars  # import LANG and many more...
+. $CFG_DIR/.bash_envars  # import AUTOTEVE_CFG, EDITOR, LANG and many more...
 
 info "CFG_DIR:'$CFG_DIR'"
 
@@ -295,6 +295,27 @@ if [ "$MALNA" = true ]; then
     ln -sf $CFG_DIR/monodrive $BIN_DIR/monodrive
     info OK
 
+    info "setup autoteve"
+    git clone https://github.com/istvans/autoteve.git $HOME/autoteve
+    if [ ! -f $AUTOTEVE_CFG ]; then
+        if $BATCH_MODE; then
+            warn "You will need to create $AUTOTEVE_CFG before the next schedule"
+        else
+            mkdir -p $AUTOTEVE_CFG_DIR 2>/dev/null
+            chmod 700 $AUTOTEVE_CFG_DIR
+            crashburn
+            touch $AUTOTEVE_CFG
+            crashburn
+            chmod 600 $AUTOTEVE_CFG
+            crashburn
+            echo "please configure autoteve" >&2
+            sleep 5
+            $EDITOR $AUTOTEVE_CFG
+            crashburn
+        fi
+    fi
+    info OK
+
     OLD_CRON="/var/tmp/crontab.old"
     info @single_line_start@ "saving old crontab to '$OLD_CRON'..."
     crontab -l > $OLD_CRON
@@ -312,7 +333,7 @@ if [ "$MALNA" = true ]; then
     else
         echo "please configure the daemon" >&2
         sleep 5
-        sudo vim $TRANSMISSION_DAEMON_CFG
+        sudo $EDITOR $TRANSMISSION_DAEMON_CFG
     fi
     sudo usermod -a -G debian-transmission $USER
     START_DAEMON_CMD=sudo systemctl start transmission-daemon

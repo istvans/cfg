@@ -1,3 +1,6 @@
+export AUTOTEVE_CFG=$AUTOTEVE_CFG_DIR/config.toml
+export AUTOTEVE_CFG_DIR=$HOME/.autoteve
+export AUTOTEVE_LOG=/var/tmp/autoteve.log
 export BASHRC="$HOME/.bashrc"
 export BASH_FUNCTIONS="$HOME/.bash_functions"
 export BASH_GIT_PROMPT=".bash-git-prompt"
