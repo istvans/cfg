@@ -66,6 +66,7 @@ if [ ! -d $BIN_DIR ]; then
     crashburn
 fi
 info "BIN_DIR:'$BIN_DIR'"
+    
 
 info "let's start with making sure we have all the essential apps..."
 if [ "$MALNA" = true ]; then
@@ -319,6 +320,22 @@ if [ "$MALNA" = true ]; then
     info OK
 
     info "setup samba..."
-    # TODO can we prevent this to exit the shell somehow?
-    sudo apt-get $ASSUME_YES install smb-app-osmc # must be the last step, it exits at the end...
+    sudo apt-get $ASSUME_YES install smb-app-osmc
+    crashburn
+    sudo cp $CFG_DIR/smb-shares.conf /etc/samba/smb-shares.conf
+    crashburn
+    SAMBA_PASSWD="smbpasswd -a osmc"
+    SAMBA_SERVICE=smbd
+    if $BATCH_MODE; then
+        warn "To set the samba password run $SAMBA_PASSWD; then restart $SAMBA_SERVICE"
+    else
+        sudo $SAMBA_PASSWD
+        crashburn
+        sudo service $SAMBA_SERVICE restart
+        crashburn
+    fi
+    info OK
 fi
+
+info "We are ready to go!"
+
