@@ -1,5 +1,5 @@
-export AUTOTEVE_CFG=$AUTOTEVE_CFG_DIR/config.toml
 export AUTOTEVE_CFG_DIR=$HOME/.autoteve
+export AUTOTEVE_CFG=$AUTOTEVE_CFG_DIR/config.toml
 export AUTOTEVE_SRC_DIR=$HOME/autoteve
 export AUTOTEVE_LOG=/var/tmp/autoteve.log
 export BASHRC="$HOME/.bashrc"
