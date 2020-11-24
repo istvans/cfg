@@ -10,6 +10,12 @@ function force_home_links
      done
 }
 #==============================================================================
+function find_expressvpn_installer
+{
+    INSTALLER_DIR=$1
+    find $INSTALLER_DIR -maxdepth 1 -name 'expressvpn*' -print -quit
+}
+#==============================================================================
 #=================================== MAIN =====================================
 #==============================================================================
 CFG_DIR=$HOME/cfg
@@ -24,7 +30,7 @@ fi
 
 . $CFG_DIR/argparse  # import MALNA, BATCH_MODE
 . $CFG_DIR/.bash_functions  # import is_installed, fatal_error, crashburn, warn, info, error
-. $CFG_DIR/.bash_envars  # import AUTOTEVE_CFG, EDITOR, LANG and many more...
+. $CFG_DIR/.bash_envars  # import AUTOTEVE_CFG, EDITOR, LANG, VPN_INSTALL_ADDRESS and many more...
 
 info "CFG_DIR:'$CFG_DIR'"
 
@@ -36,16 +42,6 @@ fi
 
 if [ ! $(is_installed git) ]; then
     fatal_error "missing git? this script should have been git cloned!"
-fi
-
-if [ "$MALNA" = true ]; then
-    if [ ! $(is_installed expressvpn) ]; then
-        express_vpn_installer="$(find $CFG_DIR -maxdepth 1 -name 'expressvpn*' -print -quit)"
-        if [[ -z "$express_vpn_installer" ]]; then
-            fatal_error "put an expressvpn installer into $CFG_DIR/ and try again"
-        fi
-        info "ExpressVPN installer:'$express_vpn_installer'"
-    fi
 fi
 
 info "setup locale..."
@@ -67,7 +63,6 @@ if [ ! -d $BIN_DIR ]; then
 fi
 info "BIN_DIR:'$BIN_DIR'"
     
-
 info "let's start with making sure we have all the essential apps..."
 if [ "$MALNA" = true ]; then
     sudo apt-get update
@@ -109,12 +104,18 @@ if [ "$MALNA" = true ]; then
     fi
 
     PYTHON3=python3.9
-    if [ ! $(is_installed $PYTHON3) ]; then
+    info @single_line_start@ "detect $PYTHON3..."
+    if [ $(is_installed $PYTHON3) ]; then
+        info @single_line_end@ $($PYTHON3 --version)
+        crashburn
+    else
+        info @single_line_end@ MISSING
+        SETUP_TIME_ESTIMATE_H=2.5
         if $BATCH_MODE; then
-            warn "Failed to detect $PYTHON3... installing it (takes ~2.5 hours)..."
+            warn "Failed to detect $PYTHON3... installing it (takes ~$SETUP_TIME_ESTIMATE_H hours)..."
             choice="y"
         else
-            read -p "Failed to detect $PYTHON3... shall we build it (takes ~2.5 hours)? (y/n) " choice
+            read -p "Failed to detect $PYTHON3... shall we build it (takes ~$SETUP_TIME_ESTIMATE_H hours)? (y/n) " choice
         fi
         if [ "$choice" = "y" ]; then
             start=$(date +%s)
@@ -227,6 +228,44 @@ if [ "$MALNA" = true ]; then
         fi
     fi
 
+    if [ $(is_installed $PYTHON3) ]; then
+        info "install $PYTHON3 dependent apps..."
+
+        info "... setup autoteve ..."
+        if [ ! -d "$AUTOTEVE_SRC_DIR" ]; then
+            git clone https://github.com/istvans/autoteve.git $AUTOTEVE_SRC_DIR
+            crashburn
+        else
+            info "...... no download; using the found source ......"
+        fi
+    
+        cd $AUTOTEVE_SRC_DIR
+        $PYTHON3 -m pipenv install
+        crashburn
+        cd -
+
+        if [ ! -f $AUTOTEVE_CFG ]; then
+            if $BATCH_MODE; then
+                warn "You will need to create $AUTOTEVE_CFG before the next schedule"
+            else
+                mkdir -p $AUTOTEVE_CFG_DIR 2>/dev/null
+                chmod 700 $AUTOTEVE_CFG_DIR
+                crashburn
+                touch $AUTOTEVE_CFG
+                crashburn
+                chmod 600 $AUTOTEVE_CFG
+                crashburn
+                echo "please configure autoteve" >&2
+                sleep 5
+                $EDITOR $AUTOTEVE_CFG
+                crashburn
+            fi
+        fi
+        info OK
+    else
+        warn "Cannot install $PYTHON3 dependent apps! $PYTHON3 is missing"
+    fi
+
     DIGI_DIR=$HOME/digionline
     if [ ! -d $DIGI_DIR ]; then
         info "setup digionline under $DIGI_DIR..."
@@ -241,9 +280,26 @@ if [ "$MALNA" = true ]; then
         fi
     fi
 
-    if [ ! $(is_installed expressvpn) ]; then
-        info "setup expressvpn..."
+    info @single_line_start@ "detect expressvpn..."
+    if [ $(is_installed expressvpn) ]; then
+        info @single_line_end@ $(expressvpn --version)
+        crashburn
+    else
+        info @single_line_end@ MISSING
+        INSTALLER_DIR=/tmp/
+        express_vpn_installer="$(find_expressvpn_installer $INSTALLER_DIR)"
+        if [[ -z "$express_vpn_installer" ]]; then
+            info "downlad expressvpn from $VPN_INSTALL_ADDRESS..."
+            wget -c $VPN_INSTALL_ADDRESS --directory-prefix=$INSTALLER_DIR
+            crashburn
+            express_vpn_installer="$(find_expressvpn_installer $INSTALLER_DIR)"
+            crashburn
+            info OK
+        fi
+
+        info "setup expressvpn using $express_vpn_installer..."
         sudo dpkg -i $express_vpn_installer
+        crashburn
         if $BATCH_MODE; then
             warn "Activate the account and run the below steps manually"
         else
@@ -295,27 +351,6 @@ if [ "$MALNA" = true ]; then
     ln -sf $CFG_DIR/monodrive $BIN_DIR/monodrive
     info OK
 
-    info "setup autoteve"
-    git clone https://github.com/istvans/autoteve.git $HOME/autoteve
-    if [ ! -f $AUTOTEVE_CFG ]; then
-        if $BATCH_MODE; then
-            warn "You will need to create $AUTOTEVE_CFG before the next schedule"
-        else
-            mkdir -p $AUTOTEVE_CFG_DIR 2>/dev/null
-            chmod 700 $AUTOTEVE_CFG_DIR
-            crashburn
-            touch $AUTOTEVE_CFG
-            crashburn
-            chmod 600 $AUTOTEVE_CFG
-            crashburn
-            echo "please configure autoteve" >&2
-            sleep 5
-            $EDITOR $AUTOTEVE_CFG
-            crashburn
-        fi
-    fi
-    info OK
-
     OLD_CRON="/var/tmp/crontab.old"
     info @single_line_start@ "saving old crontab to '$OLD_CRON'..."
     crontab -l > $OLD_CRON
@@ -345,16 +380,21 @@ if [ "$MALNA" = true ]; then
     crashburn
     sudo cp $CFG_DIR/smb-shares.conf /etc/samba/smb-shares.conf
     crashburn
-    SAMBA_PASSWD="smbpasswd -a osmc"
     SAMBA_SERVICE=smbd
-    if $BATCH_MODE; then
-        warn "To set the samba password run $SAMBA_PASSWD; then restart $SAMBA_SERVICE"
+    if $(sudo pdbedit --list | grep $USER >/dev/null); then
+        info "...$USER is already a samba user✅..."
     else
-        sudo $SAMBA_PASSWD
-        crashburn
-        sudo service $SAMBA_SERVICE restart
-        crashburn
+        SAMBA_PASSWD="smbpasswd -a $USER"
+        if $BATCH_MODE; then
+            warn "To set the samba password run $SAMBA_PASSWD; then restart $SAMBA_SERVICE"
+        else
+            sudo $SAMBA_PASSWD
+            crashburn
+        fi
     fi
+    info "...restarting the samba service..."
+    sudo service $SAMBA_SERVICE restart
+    crashburn
     info OK
 fi
 

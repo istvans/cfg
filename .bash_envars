@@ -1,5 +1,6 @@
 export AUTOTEVE_CFG=$AUTOTEVE_CFG_DIR/config.toml
 export AUTOTEVE_CFG_DIR=$HOME/.autoteve
+export AUTOTEVE_SRC_DIR=$HOME/autoteve
 export AUTOTEVE_LOG=/var/tmp/autoteve.log
 export BASHRC="$HOME/.bashrc"
 export BASH_FUNCTIONS="$HOME/.bash_functions"
@@ -20,4 +21,5 @@ export ODRIVE_AUTH_KEY=$(cat $ODRIVE_AUTH_KEY_FILE 2>/dev/null)
 export ODRIVE_LOG=/var/tmp/odrive
 export ODRIVE=$ODRIVE_BIN_PATH/odrive.py
 export ODRIVE_AGENT_WAIT_S=30
+export VPN_INSTALL_ADDRESS=https://www.expressvpn.works/clients/linux/expressvpn_3.2.1.2-1_armhf.deb
 export VPN_SERVER="smart"
