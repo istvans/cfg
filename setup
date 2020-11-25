@@ -300,9 +300,14 @@ if [ "$MALNA" = true ]; then
         info "setup expressvpn using $express_vpn_installer..."
         sudo dpkg -i $express_vpn_installer
         crashburn
+        info "cleanup installer..."
+        rm $express_vpn_installer
+        crashburn
         if $BATCH_MODE; then
             warn "Activate the account and run the below steps manually"
         else
+            WAIT_FOR_VPN_DAEMON=5
+            info "Waiting $WAIT_FOR_VPN_DAEMON seconds before trying to activate"
             expressvpn activate
             expressvpn autoconnect on
             expressvpn connect $VPN_SERVER
@@ -381,14 +386,17 @@ if [ "$MALNA" = true ]; then
     sudo cp $CFG_DIR/smb-shares.conf /etc/samba/smb-shares.conf
     crashburn
     SAMBA_SERVICE=smbd
-    if $(sudo pdbedit --list | grep $USER >/dev/null); then
-        info "...$USER is already a samba user✅..."
+    SAMBA_MAGIC_WORD=titok
+    if $(sudo pdbedit -u $USER -f | grep $SAMBA_MAGIC_WORD >/dev/null); then
+        info "...$USER was already setup✅..."
     else
         SAMBA_PASSWD="smbpasswd -a $USER"
         if $BATCH_MODE; then
             warn "To set the samba password run $SAMBA_PASSWD; then restart $SAMBA_SERVICE"
         else
             sudo $SAMBA_PASSWD
+            crashburn
+            sudo pdbedit -u $USER -f $SAMBA_MAGIC_WORD
             crashburn
         fi
     fi
