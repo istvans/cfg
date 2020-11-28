@@ -141,14 +141,14 @@ if has("autocmd")
     " autocmd FileType text setlocal textwidth=78
     autocmd BufEnter * :syntax sync fromstart
     au BufRead *.a set ft=sh
-    
+
     au filetypedetect BufNewFile,BufRead Makefile* set noexpandtab
-    
+
     autocmd BufRead,BufNewFile *.txt,README,TODO,CHANGELOG,NOTES
            \ setlocal autoindent expandtab tabstop=8 softtabstop=2 shiftwidth=2
            \ textwidth=70 wrap formatoptions=tcqn
            \ comments=s1:/*,ex:*/,://,b:#,:%,:XCOMM,fb:-,fb:*,fb:+,fb:.,fb:>
-    
+
   augroup END
 else  " we have no autocmd
   set autoindent      " Always set autoindenting on
@@ -164,6 +164,9 @@ highlight DiffText term=reverse cterm=bold ctermbg=blue ctermfg=white
 " Highlight background of text that goes over the 100 column limit
 highlight OverLength ctermbg=lightgray ctermfg=black guibg=lightgray guifg=black
 match OverLength /\%>100v.\+/
+" Highlight trailing whitepace and spaces before a tab
+highlight ExtraWhitespace ctermbg=darkred guibg=darkred
+2match ExtraWhitespace /\s\+$\| \+\ze\t/
 
 " Ignore whitspace in vimdiff
 set diffopt+=iwhite

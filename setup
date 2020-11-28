@@ -62,7 +62,7 @@ if [ ! -d $BIN_DIR ]; then
     crashburn
 fi
 info "BIN_DIR:'$BIN_DIR'"
-    
+
 info "let's start with making sure we have all the essential apps..."
 if [ "$MALNA" = true ]; then
     sudo apt-get update
@@ -238,7 +238,7 @@ if [ "$MALNA" = true ]; then
         else
             info "...... no download; using the found source ......"
         fi
-    
+
         cd $AUTOTEVE_SRC_DIR
         $PYTHON3 -m pipenv install
         crashburn
