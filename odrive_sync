@@ -1,11 +1,64 @@
 #!/usr/bin/env bash
+set -euxo pipefail  # safe
+
 . $HOME/bin/odrive_common
 
 log_file=$(unique_log_filename)
 
-# purge old log files
-find $ODRIVE_LOG* -mtime +7 -type f -delete
+POSITIONAL=()
+START=false
+STOP=false
+HELP=false
+while [[ $# -gt 0 ]]; do
+    key="$1"
+    case $key in
+        --start)
+            START=true
+        ;;
+        --stop)
+            STOP=true
+        ;;
+        -h|--help)
+            HELP=true
+        ;;
+        *)  # unknown option
+            POSITIONAL+=("$1") # save it in an array for later
+        ;;
+    esac
+    shift
+done
+set -- "${POSITIONAL[@]}" # restore positional parameters
 
-# sync
-python -u $ODRIVE sync $ODRIVE_AMAZON_PLACEHOLDER --recursive >>$log_file 2>&1
+if [[ $START == $STOP ]]; then
+    fatal_error "Start or stop? Please choose one."
+fi
+
+if $HELP; then
+    me=$(basename $0)
+    cat << EOF
+Usage:
+$ $me (Options)
+
+Options:
+    --start                         start the odrive sync
+    --stop                          stop any ongoing sync
+    -h|--help                       show this help message and exit
+
+EOF
+    exit 0
+fi
+
+# purge old log files
+find $ODRIVE_LOG* -mtime +7 -type f -delete >>$log_file 2>&1
+
+if $START; then
+    kill_other_instances "$(basename "$0")" >>$log_file 2>&1
+    python -u $ODRIVE sync $ODRIVE_AMAZON_PLACEHOLDER --recursive >>$log_file 2>&1
+    crashburn >>$log_file 2>&1
+elif $STOP; then
+    kill_other_instances "sync $ODRIVE_AMAZON_PLACEHOLDER" >>$log_file 2>&1
+    crashburn >>$log_file 2>&1
+else
+    unreachable >>$log_file 2>&1
+fi
 

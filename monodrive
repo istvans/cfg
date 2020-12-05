@@ -12,10 +12,10 @@
 #==============================================================================
 # Constants
 #==============================================================================
-FGREP="/bin/fgrep"
+PGREP="/bin/grep -P"
 MONITOR_WAIT_S=60
 WAIT_FOR_AGENT_S=$ODRIVE_AGENT_WAIT_S
-AGENT_ERROR="There was an error sending the command, please make sure odrive agent or desktop is running."
+AGENT_ERROR="(There was an error sending the command, please make sure odrive agent or desktop is running.|You must have odrive agent or desktop running before using this script.)"
 #==============================================================================
 # Functions
 #==============================================================================
@@ -26,18 +26,18 @@ function latest_sync_log
 #==============================================================================
 function agent_is_running
 {
-    $FGREP "$AGENT_ERROR" $(latest_sync_log) >/dev/null 2>&1
+    $PGREP "$AGENT_ERROR" $(latest_sync_log) >/dev/null 2>&1
     return $((! $?))
 }
 #==============================================================================
 function start_agent
 {
-    nohup $HOME/bin/odrive_agent >/dev/null 2>&1 &
+    nohup $HOME/bin/odrive_agent &
 }
 #==============================================================================
 function start_sync
 {
-    nohup $HOME/bin/odrive_sync >/dev/null 2>&1 &
+    nohup $HOME/bin/odrive_sync --start &
 }
 #==============================================================================
 # MAIN

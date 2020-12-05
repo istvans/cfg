@@ -14,11 +14,10 @@
 @reboot         /bin/sleep 120; $HOME/bin/odrive_agent
 # start up the odrive agent monitoring to ensure syncing can finish
 @reboot         /bin/sleep 300; $HOME/bin/monodrive >/var/tmp/monodrive.log 2>&1
-# odrive scan for new cloud content
-# --temporarily disabled-- normal schedule:
-# 0 2 * * *       $HOME/bin/odrive_sync
-# temporary schedule to sync everything
-@reboot         /bin/sleep 200; $HOME/bin/odrive_sync
+# start odrive sync
+0 1 * * *       $HOME/bin/odrive_sync --start
+# stop odrive sync
+0 6 * * *       $HOME/bin/odrive_sync --stop
 # to ensure digionline logs cannot grow forever
 0 5 * * mon     /usr/sbin/service digionline restart
 # feed and teach our teve automagically

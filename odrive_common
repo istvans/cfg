@@ -1,4 +1,5 @@
 . $HOME/.bash_envars
+. $HOME/.bash_functions
 
 function unique_log_filename
 {

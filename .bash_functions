@@ -96,13 +96,19 @@ function fatal_error
     exit_with_stack_trace 1 $@
 }
 #==============================================================================
+function unreachable
+{
+    fatal_error "UNREACHABLE CODE WAS REACHED!"
+}
+#==============================================================================
 function kill_other_instances
 {
     local instance_name=$1
     if [[ -n "$instance_name" ]]; then
-        info "own pid: $$"
+        local own_pid=$$
+        info "own pid: $own_pid"
         for pid in $(/usr/bin/pgrep -f "$instance_name"); do
-            if [ $pid -ne $$ ]; then
+            if [ $pid -ne $own_pid ]; then
                 warn "killing pid: $pid"
                 /bin/kill $pid
             fi
