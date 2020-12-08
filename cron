@@ -17,7 +17,7 @@
 # start odrive sync
 0 1 * * *       $HOME/bin/odrive_sync --start
 # stop odrive sync
-0 6 * * *       $HOME/bin/odrive_sync --stop
+0 5 * * *       $HOME/bin/odrive_sync --stop
 # to ensure digionline logs cannot grow forever
 0 5 * * mon     /usr/sbin/service digionline restart
 # feed and teach our teve automagically
