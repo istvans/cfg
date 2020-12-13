@@ -10,10 +10,12 @@
 # # * * * * * <command to execute>
 # to ensure the VPN is connected after start-up
 @reboot         $HOME/bin/monvpn >/var/tmp/monvpn.log 2>&1
+# bounce transmission once $BIG_DRIVE is mounted
+@reboot         $HOME/bin/bounce_transmission >/var/tmp/bounce_transmission.log 2>&1
 # start up the odrive agent with some delay to allow the network to come up
 @reboot         /bin/sleep 120; $HOME/bin/odrive_agent
-# start up the odrive agent monitoring to ensure syncing can finish
-@reboot         /bin/sleep 300; $HOME/bin/monodrive >/var/tmp/monodrive.log 2>&1
+# start up the odrive agent monitoring to ensure uninterrupted syncing
+0 1 * * *       /bin/sleep 300; $HOME/bin/monodrive >/var/tmp/monodrive.log 2>&1
 # start odrive sync
 0 1 * * *       $HOME/bin/odrive_sync --start
 # stop odrive sync

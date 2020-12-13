@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+set -euxo pipefail  # safe
+
+# Imports
+#==============================================================================
+. $HOME/.bash_envars
+[ $? -ne 0 ] && exit 41
+. $HOME/.bash_functions
+[ $? -ne 0 ] && exit 42
+#==============================================================================
+
+while true; do
+    if ls $BIG_DRIVE >/dev/null 2>&1; then
+        service=transmission-daemon
+        echo "bouncing $service"
+        /usr/sbin/service $service restart
+        break
+    fi
+    wait_s=10
+    echo "waiting $wait_s sec and then checking again..."
+    sleep $wait_s
+done
+

@@ -378,6 +378,7 @@ if [ "$MALNA" = true ]; then
     sudo usermod -a -G debian-transmission $USER
     START_DAEMON_CMD=sudo systemctl start transmission-daemon
     sudo systemctl start transmission-daemon
+    ln -sf $CFG_DIR/bounce_transmission $BIN_DIR/bounce_transmission
     info OK
 
     info "setup samba..."
