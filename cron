@@ -12,15 +12,16 @@
 @reboot         $HOME/bin/monvpn >/var/tmp/monvpn.log 2>&1
 # bounce transmission once $BIG_DRIVE is mounted
 @reboot         $HOME/bin/bounce_transmission >/var/tmp/bounce_transmission.log 2>&1
-# start up the odrive agent with some delay to allow the network to come up
-@reboot         /bin/sleep 120; $HOME/bin/odrive_agent
+# start up the odrive agent only before we are about to start a nightly sync (memory leak!)
+0 1 * * *       $HOME/bin/odrive_agent
 # start up the odrive agent monitoring to ensure uninterrupted syncing
 0 1 * * *       /bin/sleep 300; $HOME/bin/monodrive >/var/tmp/monodrive.log 2>&1
 # start odrive sync
-0 1 * * *       $HOME/bin/odrive_sync --start
-# stop odrive sync
-0 5 * * *       $HOME/bin/odrive_sync --stop
+0 1 * * *       /bin/sleep 600; $HOME/bin/odrive_sync --start
+# stop every bits of odrive including the agent as it seems to have some nasty memory leak...
+# Dec 13 22:45:22 malna kernel: Out of memory: Kill process 1559 (odriveagent) score 554 or sacrifice child
+0 5 * * *       /usr/bin/pkill -f odrive >/var/tmp/kill_odrive.log 2>&1
 # to ensure digionline logs cannot grow forever
-0 5 * * mon     /usr/sbin/service digionline restart
+0 4 * * mon     /usr/sbin/service digionline restart
 # feed and teach our teve automagically
 0 20 * * *      $HOME/autoteve/run
