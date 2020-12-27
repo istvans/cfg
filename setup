@@ -402,10 +402,9 @@ if [ "$MALNA" = true ]; then
         fi
     fi
     info "...restarting the samba service..."
-    sudo service $SAMBA_SERVICE restart
+    sudo systemctl restart $SAMBA_SERVICE
     crashburn
     info OK
 fi
 
 info "We are ready to go!"
-
