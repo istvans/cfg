@@ -4,7 +4,7 @@ function force_home_links
 {
      for file in $@; do
          ln -sf $CFG_DIR/$file $HOME/.
-         if [ "$MALNA" = true ]; then
+         if [ "$OSMC" = true ]; then
              sudo ln -sf $HOME/$file ~root/.
          fi
      done
@@ -14,6 +14,12 @@ function find_expressvpn_installer
 {
     INSTALLER_DIR=$1
     find $INSTALLER_DIR -maxdepth 1 -name 'expressvpn*' -print -quit
+}
+#==============================================================================
+function osmc_or_raspberry_pi_os
+{
+    [[ ("$OSMC" == true) || ("$RASPBERRY_PI_OS" == true) ]]
+    return $?
 }
 #==============================================================================
 #=================================== MAIN =====================================
@@ -28,7 +34,7 @@ if [ ! -d $CFG_DIR ]; then
     fi
 fi
 
-. $CFG_DIR/argparse  # import MALNA, BATCH_MODE
+. $CFG_DIR/argparse  # import OSMC, BATCH_MODE, RASPBERRY_PI_OS
 . $CFG_DIR/.bash_functions  # import is_installed, fatal_error, crashburn, warn, info, error
 . $CFG_DIR/.bash_envars  # import AUTOTEVE_CFG, EDITOR, LANG, VPN_INSTALL_ADDRESS and many more...
 
@@ -64,10 +70,10 @@ fi
 info "BIN_DIR:'$BIN_DIR'"
 
 info "let's start with making sure we have all the essential apps..."
-if [ "$MALNA" = true ]; then
+if osmc_or_raspberry_pi_os; then
     sudo apt-get update
-    sudo apt-get $ASSUME_YES install build-essential cron htop make man procps transmission-daemon vim \
-        wget network-manager
+    sudo apt-get $ASSUME_YES install build-essential cron htop make man procps transmission-daemon \
+        vim wget network-manager
 else
     if [ ! $(is_installed vim) ]; then
         fatal_error "vim is missing!"
@@ -79,7 +85,7 @@ git config --global user.email "stevesiroki@gmail.com"
 git config --global user.name "István Siroki"
 git config --global core.editor "vim"
 git config --global alias.lg "log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit"
-if [ "$MALNA" = true ]; then
+if osmc_or_raspberry_pi_os; then
     git config --global credential.helper 'cache --timeout=3600'
 fi
 info @single_line_end@ OK
@@ -97,12 +103,95 @@ info @single_line_start@ "setup bash..."
 force_home_links .bash_profile .bashrc .bash_aliases .bash_envars .bash_functions .vimrc
 info @single_line_end@ OK
 
-if [ "$MALNA" = true ]; then
+if $RASPBERRY_PI_OS; then
+    info "configure the raspberry pi os"
+    cat << EOF
+Recommended raspi-config settings:
+ - "System Options" -> "Boot / Auto Login" -> "Console"
+ - "Display Options" -> "Composite Video" -> "Enable 4Kp60 HDMI"
+ - "Performance Options" -> "GPU Memory" -> 256
+ - "Advanced Options" -> "GL Driver" -> "GL (Fake KMS)"
+EOF
+    if $BATCH_MODE; then
+        warn "Run 'sudo raspi-config'; it needs interactive mode"
+    else
+        need_another_go=true
+        while $need_another_go; do
+            read -p "type 'start' or 'done' (you're in a confirmation loop ;): " choice
+            case $choice in
+                start) sudo raspi-config
+                    ;;
+                done) need_another_go=false
+                    ;;
+                *) echo "unknown option"
+                    ;;
+            esac
+        done
+    fi
+    info OK
+
+    info "disable the swap"
+    sudo systemctl disable dphys-swapfile.service
+    crashburn
+    info OK
+
+    info @single_line_start@ "setup kodi"
+    sudo apt-get install kodi kodi-pvr-iptvsimple
+    crashburn
+    sudo cp $CFG_DIR/kodi.service /lib/systemd/system/.
+    crashburn
+    sudo systemctl enable kodi.service
+    crashburn
+    info @single_line_end@ OK
+fi
+
+if osmc_or_raspberry_pi_os; then
     BASH_GIT_PROMPT_DIR=$HOME/$BASH_GIT_PROMPT
     if [ ! -d $BASH_GIT_PROMPT_DIR ]; then
         git clone https://github.com/magicmonty/bash-git-prompt.git $BASH_GIT_PROMPT_DIR --depth=1
     fi
 
+    info @single_line_start@ "detect expressvpn..."
+    if [ $(is_installed expressvpn) ]; then
+        info @single_line_end@ $(expressvpn --version)
+        crashburn
+    else
+        info @single_line_end@ MISSING
+        INSTALLER_DIR=/tmp/
+        express_vpn_installer="$(find_expressvpn_installer $INSTALLER_DIR)"
+        if [[ -z "$express_vpn_installer" ]]; then
+            info "downlad expressvpn from $VPN_INSTALL_ADDRESS..."
+            wget -c $VPN_INSTALL_ADDRESS --directory-prefix=$INSTALLER_DIR
+            crashburn
+            express_vpn_installer="$(find_expressvpn_installer $INSTALLER_DIR)"
+            crashburn
+            info OK
+        fi
+
+        info "setup expressvpn using $express_vpn_installer..."
+        sudo dpkg -i $express_vpn_installer
+        crashburn
+        info "cleanup installer..."
+        rm $express_vpn_installer
+        crashburn
+        if $BATCH_MODE; then
+            warn "Activate the account and run the below steps manually"
+        else
+            WAIT_FOR_VPN_DAEMON=5
+            info "Waiting $WAIT_FOR_VPN_DAEMON seconds before trying to activate"
+            expressvpn activate
+            expressvpn autoconnect on
+            expressvpn connect $VPN_SERVER
+        fi
+    fi
+    expressvpn preferences
+
+    info @single_line_start@ "install VPN monitor..."
+    ln -sf $CFG_DIR/monvpn $BIN_DIR/monvpn
+    info @single_line_end@ OK
+fi
+
+if [ "$OSMC" = true ]; then
     PYTHON3=python3.9
     info @single_line_start@ "detect $PYTHON3..."
     if [ $(is_installed $PYTHON3) ]; then
@@ -279,45 +368,6 @@ if [ "$MALNA" = true ]; then
             crashburn
         fi
     fi
-
-    info @single_line_start@ "detect expressvpn..."
-    if [ $(is_installed expressvpn) ]; then
-        info @single_line_end@ $(expressvpn --version)
-        crashburn
-    else
-        info @single_line_end@ MISSING
-        INSTALLER_DIR=/tmp/
-        express_vpn_installer="$(find_expressvpn_installer $INSTALLER_DIR)"
-        if [[ -z "$express_vpn_installer" ]]; then
-            info "downlad expressvpn from $VPN_INSTALL_ADDRESS..."
-            wget -c $VPN_INSTALL_ADDRESS --directory-prefix=$INSTALLER_DIR
-            crashburn
-            express_vpn_installer="$(find_expressvpn_installer $INSTALLER_DIR)"
-            crashburn
-            info OK
-        fi
-
-        info "setup expressvpn using $express_vpn_installer..."
-        sudo dpkg -i $express_vpn_installer
-        crashburn
-        info "cleanup installer..."
-        rm $express_vpn_installer
-        crashburn
-        if $BATCH_MODE; then
-            warn "Activate the account and run the below steps manually"
-        else
-            WAIT_FOR_VPN_DAEMON=5
-            info "Waiting $WAIT_FOR_VPN_DAEMON seconds before trying to activate"
-            expressvpn activate
-            expressvpn autoconnect on
-            expressvpn connect $VPN_SERVER
-        fi
-    fi
-    expressvpn preferences
-
-    info @single_line_start@ "install VPN monitor..."
-    ln -sf $CFG_DIR/monvpn $BIN_DIR/monvpn
-    info @single_line_end@ OK
 
     info "setup odrive..."
     if [ ! -d $ODRIVE_BIN_PATH ]; then

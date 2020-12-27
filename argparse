@@ -1,27 +1,28 @@
 POSITIONAL=()
-MALNA=false
+OSMC=false
+RASPBERRY_PI_OS=false
 BATCH_MODE=false
 HELP=false
 while [[ $# -gt 0 ]]; do
     key="$1"
     case $key in
-        -m|--malna)
-            MALNA=true
-            shift # past argument
+        -o|--osmc)
+            OSMC=true
+        ;;
+        -r|--raspbian)
+            RASPBERRY_PI_OS=true
         ;;
         -b|--batch)
             BATCH_MODE=true
-            shift
         ;;
         -h|--help)
             HELP=true
-            shift
         ;;
         *)  # unknown option
             POSITIONAL+=("$1") # save it in an array for later
-            shift # past argument
         ;;
     esac
+    shift
 done
 set -- "${POSITIONAL[@]}" # restore positional parameters
 
@@ -32,12 +33,20 @@ Usage:
 $ $me (Options)
 
 Options:
-    -m|--malna                      trigger MALNA setup steps
-    -b|--batch                      activates batch mode aka non-interactive mode
+    -o|--osmc                       trigger OSMC setup steps
+    -r|--raspbian                   trigger Raspberry Pi OS setup steps
+    -b|--batch                      activate batch mode aka non-interactive mode
     -h|--help                       show this help message and exit
 
 EOF
     exit 0
 fi
-echo "MALNA setup? $MALNA"
+
+if [[ ("$OSMC" == true) && ("$RASPBERRY_PI_OS" == true) ]]; then
+    echo "Choose either OSMC or RASPBERRY_PI_OS, but not both"
+    exit 1
+fi
+
+echo "OSMC setup? $OSMC"
+echo "Raspberry Pi OS setup? $RASPBERRY_PI_OS"
 echo "BATCH mode? $BATCH_MODE"
