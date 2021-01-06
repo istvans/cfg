@@ -103,11 +103,15 @@ info @single_line_start@ "setup bash..."
 force_home_links .bash_profile .bashrc .bash_aliases .bash_envars .bash_functions .vimrc
 info @single_line_end@ OK
 
+samba_was_installed=false
 if $RASPBERRY_PI_OS; then
+    info "begin Raspberry Pi OS-specific steps..."
+
     info "configure the raspberry pi os"
     cat << EOF
 Recommended raspi-config settings:
  - "System Options" -> "Boot / Auto Login" -> "Console"
+ - "System Options" -> "Hostname" -> whatever you'd like
  - "Display Options" -> "Composite Video" -> "Enable 4Kp60 HDMI"
  - "Performance Options" -> "GPU Memory" -> 256
  - "Advanced Options" -> "GL Driver" -> "GL (Fake KMS)"
@@ -135,17 +139,84 @@ EOF
     crashburn
     info OK
 
-    info @single_line_start@ "setup kodi"
-    sudo apt-get install kodi kodi-pvr-iptvsimple
+    info "setup kodi"
+    sudo apt-get $ASSUME_YES install kodi kodi-pvr-iptvsimple
     crashburn
-    sudo cp $CFG_DIR/kodi.service /lib/systemd/system/.
+    KODI_SERVICE_DIST_PATH=/lib/systemd/system/kodi.service
+    if [ ! -f $KODI_SERVICE_DIST_PATH ]; then
+        sudo cp $CFG_DIR/kodi.service $KODI_SERVICE_DIST_PATH
+        crashburn
+        sudo systemctl enable kodi.service
+        crashburn
+    fi
+    info OK
+
+    SOURCE_DEVICE=/dev/sda1
+    info "mount $SOURCE_DEVICE $EXT_DRIVE_DIR..."
+    ls $SOURCE_DEVICE >/dev/null
     crashburn
-    sudo systemctl enable kodi.service
+    if [ ! -d $EXT_DRIVE_DIR ]; then
+        sudo mkdir $EXT_DRIVE_DIR
+        crashburn
+    fi
+    if [[ ! $(mount | grep $EXT_DRIVE_DIR) ]]; then
+        sudo mount $SOURCE_DEVICE $EXT_DRIVE_DIR
+        crashburn
+    fi
+    ls $ENDRE >/dev/null
     crashburn
-    info @single_line_end@ OK
+    USER_GROUP=$(getent group $USER | cut -d: -f1)
+    crashburn
+    chown_ext_disk=false
+    if $BATCH_MODE; then
+        chown_ext_disk=true
+    else
+        question="Shall we change the owner of all the files in $ENDRE"
+        question="$question to $USER:$USER_GROUP? (y/n)"
+        read -p "$question " choice
+        [ "$choice" = "y" ] && chown_ext_disk=true
+    fi
+    if $chown_ext_disk; then
+        info @single_line_start@ "... running recursive chown on $ENDRE ..."
+        sudo chown --recursive $USER:$USER_GROUP $ENDRE
+        crashburn
+        info @single_line_end@ OK
+    fi
+    FSTAB=/etc/fstab
+    if [[ ! $(grep $EXT_DRIVE_DIR $FSTAB) ]]; then
+        info @single_line_start@ "... setup auto-mount via $FSTAB ..."
+        sudo cp $FSTAB $FSTAB.orig
+        crashburn
+        echo "LABEL=Endre $EXT_DRIVE_DIR ext4 defaults,auto,users,rw,nofail" | sudo tee -a $FSTAB >/dev/null
+        crashburn
+        info @single_line_end@ OK
+    fi
+    info OK
+
+    if $BATCH_MODE; then
+        warn "samba installation would need interactive mode; skipped"
+    else
+        info "install samba..."
+        sudo apt-get $ASSUME_YES install samba
+        crashburn
+        info OK
+        samba_was_installed=true
+    fi
+fi
+
+if $OSMC; then
+    info "begin OSMC-specific steps..."
+
+    info "install samba..."
+    sudo apt-get $ASSUME_YES install smb-app-osmc
+    crashburn
+    info OK
+    samba_was_installed=true
 fi
 
 if osmc_or_raspberry_pi_os; then
+    info "begin the common steps for OSMC and Raspberry Pi OS..."
+
     BASH_GIT_PROMPT_DIR=$HOME/$BASH_GIT_PROMPT
     if [ ! -d $BASH_GIT_PROMPT_DIR ]; then
         git clone https://github.com/magicmonty/bash-git-prompt.git $BASH_GIT_PROMPT_DIR --depth=1
@@ -175,7 +246,7 @@ if osmc_or_raspberry_pi_os; then
         rm $express_vpn_installer
         crashburn
         if $BATCH_MODE; then
-            warn "Activate the account and run the below steps manually"
+            warn "Activate the account; needs interactive mode"
         else
             WAIT_FOR_VPN_DAEMON=5
             info "Waiting $WAIT_FOR_VPN_DAEMON seconds before trying to activate"
@@ -183,15 +254,13 @@ if osmc_or_raspberry_pi_os; then
             expressvpn autoconnect on
             expressvpn connect $VPN_SERVER
         fi
+
+        info @single_line_start@ "install VPN monitor..."
+        ln -sf $CFG_DIR/monvpn $BIN_DIR/monvpn
+        info @single_line_end@ OK
     fi
     expressvpn preferences
 
-    info @single_line_start@ "install VPN monitor..."
-    ln -sf $CFG_DIR/monvpn $BIN_DIR/monvpn
-    info @single_line_end@ OK
-fi
-
-if [ "$OSMC" = true ]; then
     PYTHON3=python3.9
     info @single_line_start@ "detect $PYTHON3..."
     if [ $(is_installed $PYTHON3) ]; then
@@ -212,13 +281,13 @@ if [ "$OSMC" = true ]; then
             info "... prerequisites ..."
             sudo apt-get $ASSUME_YES install openssl zlib1g-dev libffi-dev
 
-            info @single_line_start@ "... determining the system's openssl version:"
+            info @single_line_start@ "... determining the system's openssl version ..."
             # without this build the ssl python module would be missing
             # we use the same version what we have on the system thus at the end this whole build
             # can be removed i.e. it is only needed while building $PYTHON3
             OPEN_SSL_VERSION=$(openssl version | grep -oP "\d+\.\d+\.\d+[^ ]+")
             crashburn
-            info @single_line_end@ "$OPEN_SSL_VERSION ..."
+            info @single_line_end@ "$OPEN_SSL_VERSION"
             OPEN_SSL=openssl-$OPEN_SSL_VERSION
             SOURCE_TAR=$OPEN_SSL.tar.gz
 
@@ -258,9 +327,10 @@ if [ "$OSMC" = true ]; then
             cd $PY_BUILD_DIR
             crashburn
 
-            PY_CONFIG_DIR=Python-3.9.0
+            PY_VERSION=3.9.1
+            PY_CONFIG_DIR=Python-$PY_VERSION
             PY_TAR_FILE=$PY_CONFIG_DIR.tgz
-            PY_SOURCE_ADDRESS=https://www.python.org/ftp/python/3.9.0/$PY_TAR_FILE
+            PY_SOURCE_ADDRESS=https://www.python.org/ftp/python/$PY_VERSION/$PY_TAR_FILE
             info "... download $PY_SOURCE_ADDRESS ..."
             wget -c $PY_SOURCE_ADDRESS
             crashburn
@@ -349,24 +419,15 @@ if [ "$OSMC" = true ]; then
                 $EDITOR $AUTOTEVE_CFG
                 crashburn
             fi
+        else
+            chmod 700 $AUTOTEVE_CFG_DIR
+            crashburn
+            chmod 600 $AUTOTEVE_CFG
+            crashburn
         fi
         info OK
     else
         warn "Cannot install $PYTHON3 dependent apps! $PYTHON3 is missing"
-    fi
-
-    DIGI_DIR=$HOME/digionline
-    if [ ! -d $DIGI_DIR ]; then
-        info "setup digionline under $DIGI_DIR..."
-        git clone https://github.com/istvans/digionline.git $DIGI_DIR
-        DIGI_INSTALLER=$DIGI_DIR/osmc_installer.sh
-        if $BATCH_MODE; then
-            # TODO implement batch mode in osmc_installer.sh?
-            warn "Run $DIGI_INSTALLER after this setup (needs interactive mode)"
-        else
-            sudo $DIGI_INSTALLER
-            crashburn
-        fi
     fi
 
     info "setup odrive..."
@@ -390,15 +451,24 @@ if [ "$OSMC" = true ]; then
             warn "Please create $ODRIVE_AUTH_KEY_FILE before the next reboot"
         else
             touch $ODRIVE_AUTH_KEY_FILE
+            crashburn
             chmod 600 $ODRIVE_AUTH_KEY_FILE
+            crashburn
             read -p "please type in your secret odrive auth key: " auth_key
             echo "$auth_key" > $ODRIVE_AUTH_KEY_FILE
+            crashburn
             chmod 400 $ODRIVE_AUTH_KEY_FILE
+            crashburn
             . $CFG_DIR/.bash_envars  # to populate ODRIVE_AUTH_KEY from the new file
             if [[ -z "$ODRIVE_AUTH_KEY" ]]; then
                 fatal_error "The odrive auth key is still empty... ¯\_(ツ)_/¯"
             fi
         fi
+    else
+        chmod 600 $ODRIVE_AUTH_KEY_FILE
+        crashburn
+        chmod 400 $ODRIVE_AUTH_KEY_FILE
+        crashburn
     fi
     ln -sf $CFG_DIR/odrive_common $BIN_DIR/odrive_common
     ln -sf $CFG_DIR/odrive_agent $BIN_DIR/odrive_agent
@@ -416,45 +486,128 @@ if [ "$OSMC" = true ]; then
     info @single_line_end@ OK
 
     info "setup transmission..."
-    sudo systemctl stop transmission-daemon
-    TRANSMISSION_DAEMON_CFG=/etc/transmission-daemon/settings.json
-    if $BATCH_MODE; then
-        warn "To configure the transmission daemon stop it, edit $TRANSMISSION_DAEMON_CFG, then restart it"
-    else
-        echo "please configure the daemon" >&2
-        sleep 5
-        sudo $EDITOR $TRANSMISSION_DAEMON_CFG
+    info @single_line_start@ "... run as $USER ..."
+    TRANSMISSION_DAEMON=transmission-daemon
+    sudo systemctl stop $TRANSMISSION_DAEMON
+    crashburn
+    TRANSMISSION_SERVICE_DAEMON_DIR=/etc/systemd/system/$TRANSMISSION_DAEMON.service.d
+    if [ ! -d $TRANSMISSION_SERVICE_DAEMON_DIR ]; then
+        sudo mkdir -p $TRANSMISSION_SERVICE_DAEMON_DIR
+        crashburn
     fi
-    sudo usermod -a -G debian-transmission $USER
-    START_DAEMON_CMD=sudo systemctl start transmission-daemon
+    sudo tee -a $TRANSMISSION_SERVICE_DAEMON_DIR/run-as-user.conf > /dev/null << EOL
+[Service]
+User=$USER
+EOL
+    crashburn
+    sudo systemctl daemon-reload
+    crashburn
+    sudo systemctl start $TRANSMISSION_DAEMON
+    crashburn
+    sudo systemctl stop $TRANSMISSION_DAEMON
+    info @single_line_end@ OK
+
+    TRANSMISSION_DAEMON_CFG_PARTIAL_PATH=transmission-daemon/settings.json
+    TRANSMISSION_DAEMON_CFG_SOURCE=$HOME/$TRANSMISSION_DAEMON_CFG_PARTIAL_PATH
+    TRANSMISSION_DAEMON_CFG_TARGET=$HOME/.config/$TRANSMISSION_DAEMON_CFG_PARTIAL_PATH
+    TRANSMISSION_DAEMON_CFG_BACKUP=$TRANSMISSION_DAEMON_CFG_TARGET.orig
+    info @single_line_start@ "... looking for saved settings at $TRANSMISSION_DAEMON_CFG_SOURCE ..."
+    transmission_use_cfg_source=false
+    if [[ -f "$TRANSMISSION_DAEMON_CFG_SOURCE" ]]; then
+        info @single_line_end@ EXISTS
+        if $BATCH_MODE; then
+            transmission_use_cfg_source=true
+        else
+            question="Shall we use the found config (type 'y') or you'd like to"
+            question="$question set up transmission from its original config (type 'n')?"
+            read -p "$question " choice
+        fi
+        [ "$choice" = "y" ] && transmission_use_cfg_source=true
+    else
+        info @single_line_end@ MISSING
+    fi
+
+    if $transmission_use_cfg_source; then
+        info @single_line_start@ "... using the found config; backup: '$TRANSMISSION_DAEMON_CFG_BACKUP' ..."
+        if [ ! -f $TRANSMISSION_DAEMON_CFG_BACKUP ]; then
+            sudo cp $TRANSMISSION_DAEMON_CFG_TARGET $TRANSMISSION_DAEMON_CFG_BACKUP
+            crashburn
+        fi
+        sudo cp $TRANSMISSION_DAEMON_CFG_SOURCE $TRANSMISSION_DAEMON_CFG_TARGET
+        crashburn
+        info @single_line_end@ OK
+    else
+        if $BATCH_MODE; then
+            warn "To configure the transmission daemon stop it, edit $TRANSMISSION_DAEMON_CFG, then restart it"
+        else
+            echo "please configure the daemon" >&2
+            sleep 5
+            sudo $EDITOR $TRANSMISSION_DAEMON_CFG
+        fi
+    fi
     sudo systemctl start transmission-daemon
+    crashburn
     ln -sf $CFG_DIR/bounce_transmission $BIN_DIR/bounce_transmission
+    crashburn
     info OK
 
     info "setup samba..."
-    sudo apt-get $ASSUME_YES install smb-app-osmc
-    crashburn
-    sudo cp $CFG_DIR/smb-shares.conf /etc/samba/smb-shares.conf
-    crashburn
-    SAMBA_SERVICE=smbd
-    SAMBA_MAGIC_WORD=titok
-    if $(sudo pdbedit -u $USER -f | grep $SAMBA_MAGIC_WORD >/dev/null); then
-        info "...$USER was already setup✅..."
-    else
-        SAMBA_PASSWD="smbpasswd -a $USER"
-        if $BATCH_MODE; then
-            warn "To set the samba password run $SAMBA_PASSWD; then restart $SAMBA_SERVICE"
-        else
-            sudo $SAMBA_PASSWD
+    if $samba_was_installed; then
+        SAMBA_CFG_DIR=/etc/samba
+        if $OSMC; then
+            sudo cp $CFG_DIR/smb-shares.conf $SAMBA_CFG_DIR/.
             crashburn
-            sudo pdbedit -u $USER -f $SAMBA_MAGIC_WORD
+        else  # RASPBERRY_PI_OS
+            SAMBA_BACKUP_CFG=$SAMBA_CFG_DIR/smb.conf.distributed
+            if [ ! -f $SAMBA_BACKUP_CFG ]; then
+                sudo cp $SAMBA_CFG_DIR/smb.conf $SAMBA_BACKUP_CFG
+                crashburn
+            fi
+            sudo cp $CFG_DIR/smb.conf $SAMBA_CFG_DIR/.
+            crashburn
+            sudo cp $CFG_DIR/smb-local.conf /$SAMBA_CFG_DIR/.
+            crashburn
+            sudo cp $CFG_DIR/smb-shares.conf $SAMBA_CFG_DIR/.
+            crashburn
+        fi
+
+        SAMBA_SERVICE=smbd
+        SAMBA_MAGIC_WORD=titok
+        if $(sudo pdbedit -u $USER -f | grep $SAMBA_MAGIC_WORD >/dev/null); then
+            info "... $USER was already setup✅ ..."
+        else
+            SAMBA_PASSWD="smbpasswd -a $USER"
+            if $BATCH_MODE; then
+                warn "To set the samba password run $SAMBA_PASSWD; then restart $SAMBA_SERVICE"
+            else
+                sudo $SAMBA_PASSWD
+                crashburn
+                sudo pdbedit -u $USER -f $SAMBA_MAGIC_WORD
+                crashburn
+            fi
+        fi
+        info "... restarting the samba service ..."
+        sudo systemctl restart $SAMBA_SERVICE
+        crashburn
+        info "... you might need to restart explorer.exe on Windows after mapping a new samba share ..."
+        info OK
+    else
+        warn "samba was not installed so this setup step is skipped too"
+    fi
+
+    DIGI_DIR=$HOME/digionline
+    if [ ! -d $DIGI_DIR ]; then
+        info "setup digionline under $DIGI_DIR..."
+        git clone https://github.com/istvans/digionline.git $DIGI_DIR
+        DIGI_INSTALLER=$DIGI_DIR/osmc_installer.sh
+        if $BATCH_MODE; then
+            # TODO implement batch mode in osmc_installer.sh?
+            warn "Run $DIGI_INSTALLER after this setup (needs interactive mode)"
+        else
+            $DIGI_INSTALLER
             crashburn
         fi
     fi
-    info "...restarting the samba service..."
-    sudo systemctl restart $SAMBA_SERVICE
-    crashburn
-    info OK
 fi
 
 info "We are ready to go!"
