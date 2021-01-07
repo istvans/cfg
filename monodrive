@@ -21,7 +21,7 @@ AGENT_ERROR="(There was an error sending the command, please make sure odrive ag
 #==============================================================================
 function latest_sync_log
 {
-    echo "$(ls -1rt $ODRIVE_LOG.* | tail -n1)"
+    echo "$(ls -1rt $ODRIVE_LOG.* 2>&1 | tail -n1)"
 }
 #==============================================================================
 function agent_is_running
