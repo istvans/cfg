@@ -113,7 +113,7 @@ Recommended raspi-config settings:
  - "System Options" -> "Boot / Auto Login" -> "Console"
  - "System Options" -> "Hostname" -> whatever you'd like
  - "Display Options" -> "Composite Video" -> "Enable 4Kp60 HDMI"
- - "Performance Options" -> "GPU Memory" -> 256
+ - "Performance Options" -> "GPU Memory" -> 320
  - "Advanced Options" -> "GL Driver" -> "GL (Fake KMS)"
 EOF
     if $BATCH_MODE; then
