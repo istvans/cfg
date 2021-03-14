@@ -24,7 +24,7 @@ export ODRIVE_AUTH_KEY=$(cat $ODRIVE_AUTH_KEY_FILE 2>/dev/null)
 export ODRIVE_LOG=/var/tmp/odrive
 export ODRIVE=$ODRIVE_BIN_PATH/odrive.py
 export ODRIVE_AGENT_WAIT_S=30
-export VPN_INSTALL_ADDRESS=https://www.expressvpn.works/clients/linux/expressvpn_3.4.2.4-1_armhf.deb
+export VPN_INSTALL_ADDRESS=https://www.expressvpn.works/clients/linux/expressvpn_3.6.0.70-1_armhf.deb
 export VPN_SERVER="smart"
 
 # setup PATH
