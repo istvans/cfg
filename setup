@@ -44,7 +44,7 @@ if [ ! -d "$CFG_DIR" ]; then
     echo "ERROR Cannot find the $CFG_DIR directory!" >&2
     exit 1
 fi
-info "CFG_DIR:'$CFG_DIR'"
+echo "CFG_DIR:'$CFG_DIR'"
 
 . $CFG_DIR/argparse  # import OSMC, BATCH_MODE, RASPBERRY_PI_OS
 if [[ -z "${OSMC-}" ]]; then
@@ -603,7 +603,7 @@ EOL
         else
             echo "please configure the daemon" >&2
             sleep 5
-            sudo $EDITOR $TRANSMISSION_DAEMON_CFG
+            sudo $EDITOR $TRANSMISSION_DAEMON_CFG_TARGET
         fi
     fi
     sudo systemctl start transmission-daemon
