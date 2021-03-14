@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 set -uo pipefail  # safer
-# set -e would make the script exit if any of the if statements evaluates to false
-# which just seems stupid TBH. I mean, this script wants to be robust and fix
-# things where possible, instead of just exiting straight away.
+# set -e would make the script exit if any of the if statements evaluates to false.
+# This script tries to be correct and also robust i.e. fix things where possible, instead
+# of just exiting straight away.
+# With set -e the script might be shorter as all the `crashburn`s would be unnecessary.
+# TODO go through the code and check whether it could also maintain the same robustness
+# without horrendous effort.
 # set -x would print each statement, but I'd like to keep the output succinct and
-# would instead prefer helpful error messages.
+# would instead prefer helpful error messages. I might be wrong.
 #=================================== FUNC =====================================
 function create_home_links_with_backup
 {
@@ -113,6 +116,9 @@ if [ ! -d $BIN_DIR ]; then
     crashburn
 fi
 info "BIN_DIR:'$BIN_DIR'"
+
+# TODO extract each "setup block" into its own function?
+# or at least the longer ones...
 
 info "let's start with making sure we have all the essential apps..."
 if $MALNA_OS; then
@@ -283,12 +289,45 @@ if $MALNA_OS; then
         git clone https://github.com/magicmonty/bash-git-prompt.git $BASH_GIT_PROMPT_DIR --depth=1
     fi
 
-    info @single_line_start@ "detect expressvpn..."
+    info "detect expressvpn..."
+
+    install_or_update_express_vpn=false
     if [ $(is_installed expressvpn) ]; then
-        info @single_line_end@ $(expressvpn --version)
+        regex="version ([^ ]+) -"
+        [[ $(expressvpn --version) =~ $regex ]]
         crashburn
+        installed_version=${BASH_REMATCH[1]}
+        crashburn
+
+        regex="_([^_]+)_"
+        [[ "$VPN_INSTALL_ADDRESS" =~ $regex ]]
+        crashburn
+        configured_version=${BASH_REMATCH[1]}
+        crashburn
+
+        if [[ "$installed_version" != "$configured_version" ]]; then
+            info "installed version: '$installed_version'"
+            info "configured version: '$configured_version'"
+            if $BATCH_MODE; then
+                info "let's automagically install the configured version"
+                install_or_update_express_vpn=true
+            else
+                express_vpn_confirmation="expressvpn does not seem to match the configured version."
+                express_vpn_confirmation="${express_vpn_confirmation} shall we fix this? (y/n)"
+                read -p "$express_vpn_confirmation" choice
+                [ "$choice" = "y" ] && install_or_update_express_vpn=true
+            fi
+        else
+            info "... found and up-to-date version: $installed_version ..."
+            crashburn
+        fi
     else
-        info @single_line_end@ MISSING
+        install_or_update_express_vpn=true
+    fi
+
+    if $install_or_update_express_vpn; then
+        info "let's install expressvpn..."
+
         INSTALLER_DIR=/tmp/
         express_vpn_installer="$(find_expressvpn_installer $INSTALLER_DIR)"
         if [[ -z "$express_vpn_installer" ]]; then
