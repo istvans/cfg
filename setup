@@ -132,6 +132,11 @@ if $MALNA_OS; then
         vim wget network-manager
     crashburn
 elif $MSYS; then
+    info "Updating msys..."
+    pacman $ASSUME_YES -Syu
+    crashburn
+    info OK
+
     msys_packages="make vim"
     info "Installing msys packages: $msys_packages"
     pacman $ASSUME_YES -S $msys_packages
@@ -170,9 +175,9 @@ if $MALNA_OS; then
     info @single_line_end@ OK
 fi
 
-info @single_line_start@ "setup bash..."
+info "setup bash..."
 create_home_links_with_backup .bash_profile .bashrc .bash_aliases .bash_envars .bash_functions .vimrc
-info @single_line_end@ OK
+info OK
 
 samba_was_installed=false
 if $RASPBERRY_PI_OS; then
