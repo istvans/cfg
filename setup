@@ -16,11 +16,15 @@ function create_home_links_with_backup
         local real=$CFG_DIR/$file
         local link=$HOME/$file
 
-        if [ -f $link ]; then
+        if [ -f "$link" ]; then
             local backup=$backup_dir/$file
             info "$link exists. creating a backup: $backup"
             mkdir $backup_dir 2>/dev/null
-            cp $link $backup
+            if [ -f "$backup" ]; then
+                info "$backup exists. keeping this original version!"
+            else
+                cp $link $backup
+            fi
         fi
 
         info "Linking: '$link' -> '$real'"
