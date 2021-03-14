@@ -1,66 +1,111 @@
 #!/usr/bin/env bash
+set -uo pipefail  # safer
+# set -e would make the script exit if any of the if statements evaluates to false
+# which just seems stupid TBH. I mean, this script wants to be robust and fix
+# things where possible, instead of just exiting straight away.
+# set -x would print each statement, but I'd like to keep the output succinct and
+# would instead prefer helpful error messages.
 #=================================== FUNC =====================================
-function force_home_links
+function create_home_links_with_backup
 {
-     for file in $@; do
-         ln -sf $CFG_DIR/$file $HOME/.
-         if [ "$OSMC" = true ]; then
-             sudo ln -sf $HOME/$file ~root/.
-         fi
-     done
+    local backup_dir=$HOME/home_link_backup
+    for file in $@; do
+        local real=$CFG_DIR/$file
+        local link=$HOME/$file
+
+        if [ -f $link ]; then
+            local backup=$backup_dir/$file
+            info "$link exists. creating a backup: $backup"
+            mkdir $backup_dir 2>/dev/null
+            cp $link $backup
+        fi
+
+        info "Linking: '$link' -> '$real'"
+        ln -sf $real $link
+
+        if $MALNA_OS; then
+            local root_link=~root/$file
+            info "Linking: '$root_link' -> '$link'"
+            sudo ln -sf $link $root_link
+        fi
+    done
 }
 #==============================================================================
 function find_expressvpn_installer
 {
-    INSTALLER_DIR=$1
-    find $INSTALLER_DIR -maxdepth 1 -name 'expressvpn*' -print -quit
-}
-#==============================================================================
-function osmc_or_raspberry_pi_os
-{
-    [[ ("$OSMC" == true) || ("$RASPBERRY_PI_OS" == true) ]]
-    return $?
+    local installer_dir=$1
+    find $installer_dir -maxdepth 1 -name 'expressvpn*' -print -quit
 }
 #==============================================================================
 #=================================== MAIN =====================================
 #==============================================================================
-CFG_DIR=$HOME/cfg
-if [ ! -d $CFG_DIR ]; then
-    if [[ "$(basename $PWD)" = "$CFG_DIR" ]]; then
-        CFG_DIR=$PWD
-    else
-        echo "ERROR Cannot find the $CFG_DIR directory!" >&2
-        exit 1
-    fi
+CFG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+if [ ! -d "$CFG_DIR" ]; then
+    echo "ERROR Cannot find the $CFG_DIR directory!" >&2
+    exit 1
 fi
-
-. $CFG_DIR/argparse  # import OSMC, BATCH_MODE, RASPBERRY_PI_OS
-. $CFG_DIR/.bash_functions  # import is_installed, fatal_error, crashburn, warn, info, error
-. $CFG_DIR/.bash_envars  # import AUTOTEVE_CFG, EDITOR, LANG, VPN_INSTALL_ADDRESS and many more...
-
 info "CFG_DIR:'$CFG_DIR'"
 
+. $CFG_DIR/argparse  # import OSMC, BATCH_MODE, RASPBERRY_PI_OS
+if [[ -z "${OSMC-}" ]]; then
+    echo "ERROR Failed to source $CFG_DIR/argparse" >&2
+    exit 2
+fi
+
+. $CFG_DIR/.bash_functions  # import is_installed, fatal_error, crashburn, warn, info, error
+if [ ! "$(type is_installed)" ]; then
+    echo "ERROR Failed to source $CFG_DIR/.bash_functions" >&2
+    exit 3
+fi
+
+. $CFG_DIR/.bash_envars # import AUTOTEVE_CFG, EDITOR, LANG, VPN_INSTALL_ADDRESS and many more...
+if [ -z "${EDITOR-}" ]; then
+    echo "ERROR Failed to source $CFG_DIR/.bash_envars" >&2
+    exit 4
+fi
+
+if [ ! -z "${MSYSTEM-}" ]; then
+    MSYS=true
+else
+    MSYS=false
+fi
+
+if [[ ("$OSMC" = true) || ("$RASPBERRY_PI_OS" = true) ]]; then
+    if $MSYS; then
+        fatal_error "msys2 terminal was detected while OSMC:$OSMC and RASPBERRY_PI_OS:$RASPBERRY_PI_OS"
+    fi
+    MALNA_OS=true
+else
+    MALNA_OS=false
+fi
+
 if $BATCH_MODE; then
-    ASSUME_YES="--assume-yes"
+    if $MSYS; then
+        ASSUME_YES="--noconfirm"
+    else
+        ASSUME_YES="--assume-yes"
+    fi
 else
     ASSUME_YES=""
 fi
 
 if [ ! $(is_installed git) ]; then
-    fatal_error "missing git? this script should have been git cloned!"
+    fatal_error "git is not on the PATH"
 fi
 
-info "setup locale..."
-DEFAULT_LOCALE=/etc/default/locale
-if [[ ! -f $DEFAULT_LOCALE || "$(tail -n1 /etc/default/locale | cut -f2 -d =)" != "$LANG" ]]; then
-    if $BATCH_MODE; then
-        # TODO Is there a way to do this in a non-interactive way?
-        fatal_error "$DEFAULT_LOCALE setup is needed which cannot be done in batch mode"
+if [ ! $MSYS ]; then
+    info "setup locale..."
+    DEFAULT_LOCALE=/etc/default/locale
+    if [[ ! -f $DEFAULT_LOCALE || "$(tail -n1 /etc/default/locale | cut -f2 -d =)" != "$LANG" ]]; then
+        if $BATCH_MODE; then
+            # TODO Is there a way to do this in a non-interactive way?
+            fatal_error "$DEFAULT_LOCALE setup is needed which cannot be done in batch mode"
+        fi
+        sudo dpkg-reconfigure locales
+        sudo update-locale
     fi
-    sudo dpkg-reconfigure locales
-    sudo update-locale
+    info OK
 fi
-info OK
 
 BIN_DIR=$HOME/bin
 if [ ! -d $BIN_DIR ]; then
@@ -70,37 +115,53 @@ fi
 info "BIN_DIR:'$BIN_DIR'"
 
 info "let's start with making sure we have all the essential apps..."
-if osmc_or_raspberry_pi_os; then
+if $MALNA_OS; then
     sudo apt-get update
+    crashburn
     sudo apt-get $ASSUME_YES install build-essential cron htop make man procps transmission-daemon \
         vim wget network-manager
+    crashburn
+elif $MSYS; then
+    msys_packages="make vim"
+    info "Installing msys packages: $msys_packages"
+    pacman $ASSUME_YES -S $msys_packages
+    crashburn
+    info OK
 else
     if [ ! $(is_installed vim) ]; then
         fatal_error "vim is missing!"
     fi
 fi
+info OK
 
 info @single_line_start@ "setup git..."
 git config --global user.email "stevesiroki@gmail.com"
 git config --global user.name "István Siroki"
 git config --global core.editor "vim"
 git config --global alias.lg "log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit"
-if osmc_or_raspberry_pi_os; then
+if $MALNA_OS; then
+    git config --global credential.helper cache
     git config --global credential.helper 'cache --timeout=3600'
+elif $MSYS; then
+    git config --global credential.helper wincred
+else
+    info "git credential caching has NOT been setup"
 fi
 info @single_line_end@ OK
 
-info @single_line_start@ "setup vim..."
-TYPE_SCRIPT_SYNTAX="typescript-vim"
-TYPE_SCRIPT_SYNTAX_DIR="$HOME/.vim/pack/typescript/start"
-if [ ! -d $TYPE_SCRIPT_SYNTAX_DIR ]; then
-    mkdir -p $TYPE_SCRIPT_SYNTAX_DIR
-    git clone https://github.com/leafgarland/$TYPE_SCRIPT_SYNTAX.git $TYPE_SCRIPT_SYNTAX_DIR/$TYPE_SCRIPT_SYNTAX
+if $MALNA_OS; then
+    info @single_line_start@ "setup vim..."
+    TYPE_SCRIPT_SYNTAX="typescript-vim"
+    TYPE_SCRIPT_SYNTAX_DIR="$HOME/.vim/pack/typescript/start"
+    if [ ! -d $TYPE_SCRIPT_SYNTAX_DIR ]; then
+        mkdir -p $TYPE_SCRIPT_SYNTAX_DIR
+        git clone https://github.com/leafgarland/$TYPE_SCRIPT_SYNTAX.git $TYPE_SCRIPT_SYNTAX_DIR/$TYPE_SCRIPT_SYNTAX
+    fi
+    info @single_line_end@ OK
 fi
-info @single_line_end@ OK
 
 info @single_line_start@ "setup bash..."
-force_home_links .bash_profile .bashrc .bash_aliases .bash_envars .bash_functions .vimrc
+create_home_links_with_backup .bash_profile .bashrc .bash_aliases .bash_envars .bash_functions .vimrc
 info @single_line_end@ OK
 
 samba_was_installed=false
@@ -214,8 +275,8 @@ if $OSMC; then
     samba_was_installed=true
 fi
 
-if osmc_or_raspberry_pi_os; then
-    info "begin the common steps for OSMC and Raspberry Pi OS..."
+if $MALNA_OS; then
+    info "begin the common steps to setup a Raspberry Pi..."
 
     BASH_GIT_PROMPT_DIR=$HOME/$BASH_GIT_PROMPT
     if [ ! -d $BASH_GIT_PROMPT_DIR ]; then
@@ -613,6 +674,7 @@ EOL
     #                              EXPERIMENTAL                               #
     #                   ONLY TESTED ON: RASPBERRY_PI_OS                       #
     ###########################################################################
+    # Nothing at the moment.
 fi
 
 info "We are ready to go!"
