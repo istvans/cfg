@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+sudo systemctl restart digionline
+. $HOME/.bash_envars
+nohup $HOME/bin/record.sh "m4 sport" $SPORT/m4sport /var/tmp/record.log &
+rm nohup.out
+echo removed nohup.out

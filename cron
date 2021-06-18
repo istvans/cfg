@@ -25,3 +25,8 @@
 0 4 * * mon     /usr/sbin/service digionline restart
 # feed and teach our teve automagically
 0 20 * * *      $HOME/autoteve/run
+
+# euro2020
+30 16 20 6 *   $HOME/bin/rec
+00 19 20 6 *   $HOME/bin/stop_rec
+
