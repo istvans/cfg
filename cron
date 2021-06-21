@@ -27,6 +27,21 @@
 0 20 * * *      $HOME/autoteve/run
 
 # euro2020
-30 16 20 6 *   $HOME/bin/rec
-00 19 20 6 *   $HOME/bin/stop_rec
+30 19 22 6 *   $HOME/bin/rec -c "m4 sport" -o "cze_eng"
+00 22 22 6 *   $HOME/bin/stop_rec
+
+30 16 23 6 *   $HOME/bin/rec -c "duna" -o "svk_esp"
+00 19 23 6 *   $HOME/bin/stop_rec
+30 19 23 6 *   $HOME/bin/rec -c "duna" -o "por_fra"
+00 22 23 6 *   $HOME/bin/stop_rec
+
+30 16 26 6 *   $HOME/bin/rec -c "m4 sport" -o "wal_den"
+29 19 26 6 *   $HOME/bin/stop_rec
+30 19 26 6 *   $HOME/bin/rec -c "m4 sport" -o "ita_aut"
+00 23 26 6 *   $HOME/bin/stop_rec
+
+30 16 27 6 *   $HOME/bin/rec -c "m4 sport" -o "hol_"
+29 19 27 6 *   $HOME/bin/stop_rec
+30 19 27 6 *   $HOME/bin/rec -c "m4 sport" -o "bel_"
+00 23 27 6 *   $HOME/bin/stop_rec
 
