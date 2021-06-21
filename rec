@@ -1,6 +1,48 @@
 #!/usr/bin/env bash
-sudo systemctl restart digionline
+
 . $HOME/.bash_envars
-nohup $HOME/bin/record.sh "m4 sport" $SPORT/m4sport /var/tmp/record.log &
+. $HOME/.bash_functions
+script_envars
+
+usage()
+{
+    echo "Usage: $SCRIPT_SOURCE [-c <channel_regex>] [-o <file_name>]|-h"
+    exit 0
+}
+
+channel_regex="m4 sport"
+file_name=m4sport
+while getopts ":c:o:h" o; do
+    case "${o}" in
+        c)
+            channel_regex=${OPTARG}
+            ;;
+        o)
+            file_name=${OPTARG}
+            ;;
+        *)
+            usage
+            ;;
+    esac
+done
+shift $((OPTIND-1))
+
+LOG_DIR=/var/tmp/record
+mkdir $LOG_DIR 2>/dev/null
+TIMESTAMP=$(/bin/date +"%Y%m%d_%H%M%S")
+LOG_FILE=${LOG_DIR}/${TIMESTAMP}.log
+
+info "redirecting stdout & stderr to $LOG_FILE"
+redirect_stdout_and_stderr_to $LOG_FILE
+
+LOG_FILE_CLEANUP_DAYS=7
+info "removing log files older than $LOG_FILE_CLEANUP_DAYS days..."
+find $LOG_DIR -name *.log -atime +${LOG_FILE_CLEANUP_DAYS} -exec rm '{}' \;
+
+info "channel_regex = '${channel_regex}'"
+info "file_name = '${file_name}'"
+
+nohup $HOME/bin/record.sh "$channel_regex" "$SPORT/$file_name" $LOG_FILE &
 rm nohup.out
-echo removed nohup.out
+info removed nohup.out
+
