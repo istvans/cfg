@@ -23,6 +23,12 @@ function get_log_date
     /bin/date +"%Y.%m.%d %H:%M:%S.%N%Z"
 }
 #==============================================================================
+function redirect_stdout_and_stderr_to
+{
+    log_file=$1
+    exec >$log_file 2>&1
+}
+#==============================================================================
 function __log
 {
     level=$1
@@ -114,5 +120,18 @@ function kill_other_instances
             fi
         done
     fi
+}
+#==============================================================================
+script_envars()
+{
+    export SCRIPT_SOURCE="${BASH_SCRIPT_SOURCE[0]}"
+    # resolve $SCRIPT_SOURCE until the file is no longer a symlink
+    while [ -h "$SCRIPT_SOURCE" ]; do 
+        SCRIPT_DIR="$( cd -P "$( dirname "$SCRIPT_SOURCE" )" >/dev/null 2>&1 && pwd )"
+        SCRIPT_SOURCE="$(readlink "$SCRIPT_SOURCE")"
+        # if $SCRIPT_SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+        [[ $SCRIPT_SOURCE != /* ]] && SCRIPT_SOURCE="$SCRIPT_DIR/$SCRIPT_SOURCE" 
+    done
+    export SCRIPT_DIR="$( cd -P "$( dirname "$SCRIPT_SOURCE" )" >/dev/null 2>&1 && pwd )"
 }
 #==============================================================================
