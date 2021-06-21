@@ -129,7 +129,7 @@ if $MALNA_OS; then
     sudo apt-get update
     crashburn
     sudo apt-get $ASSUME_YES install build-essential cron htop make man procps transmission-daemon \
-        vim wget network-manager
+        vim wget network-manager ffmpeg
     crashburn
 elif $MSYS; then
     info "Updating msys..."
